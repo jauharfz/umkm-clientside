@@ -183,6 +183,8 @@ export default function Register() {
       fd.append("kios_id",      formData.kios.id);
       fd.append("file_ktp",     formData.ktp);
       fd.append("file_nib",     formData.nib);
+      fd.append("nama_pemilik", formData.namaUsaha);
+      fd.append("setuju",       String(formData.setuju));
 
       await api.postForm("/auth/register", fd);
       navigate("/status");
