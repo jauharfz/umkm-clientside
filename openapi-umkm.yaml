@@ -1,0 +1,1890 @@
+openapi: 3.0.3
+
+info:
+  title: API Sistem UMKM – Peken Banyumas 2026
+  description: |
+    RESTful API untuk Sistem Manajemen UMKM Peken Banyumas 2026.
+
+    API ini dibangun menggunakan **FastAPI (Python)** sebagai backend dan terintegrasi dengan
+    **Supabase (PostgreSQL)** sebagai database cloud.
+
+    ## Aktor Sistem
+    - **UMKM (Pemilik Kios)** – Pemilik yang sudah terdaftar dan disetujui admin gate.
+      Dapat mengelola stok, kas, promo, melihat riwayat transaksi, dan notifikasi.
+
+    ## Autentikasi
+    Semua endpoint (kecuali `/auth/login`, `/auth/register`, dan `/public/*`) memerlukan
+    JWT Token yang diperoleh dari endpoint login. Token dikirimkan melalui header
+    `Authorization: Bearer <token>`.
+
+    ## Integrasi dengan Gate
+    Endpoint `/public/tenant` dan `/public/diskon` adalah endpoint **publik** (tanpa auth)
+    yang dipanggil oleh backend Gate sebagai proxy (`GET /umkm` di openapi Gate — REQ-INTEG-001).
+    Gate menggunakan `UMKM_API_URL` untuk memanggil endpoint ini.
+
+  version: "1.0.0"
+  contact:
+    name: Tim Pengembang UMKM Peken Banyumas
+
+servers:
+  - url: http://localhost:8000/api
+    description: FastAPI Local Development Server
+  - url: https://<your-domain>/api
+    description: FastAPI Production Server
+
+tags:
+  - name: Autentikasi
+    description: "Login dan pendaftaran UMKM"
+  - name: Dashboard
+    description: "Statistik ringkasan kios"
+  - name: Stok
+    description: "Manajemen stok barang kios"
+  - name: Buku Kas
+    description: "Pencatatan transaksi kas masuk & keluar"
+  - name: Promo & Diskon
+    description: "Manajemen promo dan diskon kios"
+  - name: Riwayat Transaksi
+    description: "Riwayat penjualan kios"
+  - name: Notifikasi
+    description: "Notifikasi stok, transaksi, dan promo"
+  - name: Profil & Pengaturan
+    description: "Profil UMKM dan pengaturan akun"
+  - name: Publik (Gate Integration)
+    description: |
+      Endpoint publik tanpa auth yang dipanggil oleh backend Gate sebagai proxy
+      untuk mendapatkan data tenant dan diskon UMKM (REQ-INTEG-001 Gate).
+
+paths:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # AUTENTIKASI
+  # ─────────────────────────────────────────────────────────────────────────
+
+  /auth/login:
+    post:
+      tags:
+        - Autentikasi
+      summary: Login pemilik kios UMKM
+      description: |
+        Memvalidasi kredensial UMKM (email & password) dan mengembalikan
+        JWT Token. Hanya akun dengan status `approved` (disetujui admin gate)
+        yang dapat login ke dashboard.
+      operationId: loginUmkm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: "buyati@gmail.com"
+              password: "password_rahasia"
+      responses:
+        '200':
+          description: Login berhasil. JWT Token dikembalikan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                status: "success"
+                message: "Login berhasil"
+                data:
+                  token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  user:
+                    id: "550e8400-e29b-41d4-a716-446655440001"
+                    nama_pemilik: "Bu Yati Wulandari"
+                    email: "buyati@gmail.com"
+                    nama_usaha: "Sate Blengong Bu Yati"
+                    nomor_stand: "A-12"
+                    zona: "Kuliner"
+                    status_pendaftaran: "approved"
+        '401':
+          description: Email atau password salah.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: "error"
+                message: "Email atau password salah"
+        '403':
+          description: Akun belum disetujui admin atau ditolak.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                pending:
+                  summary: Masih menunggu konfirmasi
+                  value:
+                    status: "error"
+                    message: "Pendaftaran kamu sedang diproses. Tunggu konfirmasi admin."
+                rejected:
+                  summary: Ditolak
+                  value:
+                    status: "error"
+                    message: "Pendaftaran kamu ditolak. Silakan hubungi admin."
+        '422':
+          description: Field tidak lengkap atau format tidak valid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: "error"
+                message: "Field email dan password wajib diisi"
+
+  /auth/register:
+    post:
+      tags:
+        - Autentikasi
+      summary: Daftarkan UMKM baru
+      description: |
+        Mendaftarkan UMKM baru ke sistem dengan data usaha, nomor kios yang dipilih,
+        dan dokumen (KTP & NIB). Setelah registrasi, status awal adalah `pending`
+        sampai disetujui oleh admin gate.
+
+        Data dokumen (KTP & NIB) dikirim sebagai multipart/form-data karena
+        berupa file upload. Data usaha lain dikirim bersama dalam form field.
+      operationId: registerUmkm
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Pendaftaran berhasil diterima. Status awal `pending`.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Pendaftaran berhasil! Menunggu konfirmasi admin."
+                  data:
+                    $ref: '#/components/schemas/UmkmProfile'
+        '409':
+          description: Kios sudah dipilih orang lain atau email sudah terdaftar.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                kios_terisi:
+                  summary: Kios sudah diambil
+                  value:
+                    status: "error"
+                    message: "Kios A-03 sudah dipilih oleh pendaftar lain. Silakan pilih kios lain."
+                email_duplikat:
+                  summary: Email sudah terdaftar
+                  value:
+                    status: "error"
+                    message: "Email sudah terdaftar. Silakan login atau gunakan email lain."
+        '422':
+          description: Field wajib tidak diisi atau format tidak valid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: "error"
+                message: "Field nama_usaha, alamat, kategori, kios_id, file ktp, dan file nib wajib diisi"
+
+  /auth/status:
+    get:
+      tags:
+        - Autentikasi
+      summary: Cek status pendaftaran berdasarkan email
+      description: |
+        Mengecek status pendaftaran UMKM (pending / approved / rejected)
+        berdasarkan email. Digunakan oleh halaman Status.jsx.
+      operationId: checkRegistrationStatus
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+            format: email
+          example: "buyati@gmail.com"
+      responses:
+        '200':
+          description: Status pendaftaran berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      email:
+                        type: string
+                        format: email
+                      status_pendaftaran:
+                        type: string
+                        enum: [pending, approved, rejected]
+                        example: "pending"
+                      nama_usaha:
+                        type: string
+                        example: "Sate Blengong Bu Yati"
+              example:
+                status: "success"
+                data:
+                  email: "buyati@gmail.com"
+                  status_pendaftaran: "pending"
+                  nama_usaha: "Sate Blengong Bu Yati"
+        '404':
+          description: Email tidak ditemukan dalam sistem.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: "error"
+                message: "Email tidak ditemukan"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # DASHBOARD
+  # ─────────────────────────────────────────────────────────────────────────
+
+  /dashboard:
+    get:
+      tags:
+        - Dashboard
+      summary: Ambil ringkasan statistik dashboard kios
+      description: |
+        Mengembalikan data ringkasan untuk halaman Dashboard:
+        - Total produk, omset hari ini, transaksi hari ini, jumlah stok kritis
+        - Data chart penjualan 7 hari terakhir
+        - 5 transaksi terakhir
+        - Ringkasan stok semua produk
+      operationId: getDashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Data dashboard berhasil diambil.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # STOK
+  # ─────────────────────────────────────────────────────────────────────────
+
+  /stok:
+    get:
+      tags:
+        - Stok
+      summary: Ambil daftar stok barang kios
+      description: |
+        Mengembalikan semua barang yang dimiliki kios UMKM yang sedang login,
+        dengan opsi pencarian berdasarkan nama atau kategori.
+      operationId: getStok
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: Cari berdasarkan nama atau kategori barang
+          required: false
+          schema:
+            type: string
+          example: "sate"
+      responses:
+        '200':
+          description: Daftar stok berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Barang'
+              example:
+                status: "success"
+                data:
+                  - id: "barang-001"
+                    nama: "Sate Blengong Spesial"
+                    stok: 24
+                    max: 50
+                    harga: 25000
+                    kategori: "Makanan"
+                    satuan: "porsi"
+                    deskripsi: "Sate khas Banyumas"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Stok
+      summary: Tambah barang baru ke stok
+      operationId: tambahBarang
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBarangRequest'
+            example:
+              nama: "Mendoan Jumbo"
+              stok: 100
+              harga: 5000
+              kategori: "Camilan"
+              satuan: "pcs"
+              deskripsi: "Mendoan ukuran besar khas Banyumas"
+      responses:
+        '201':
+          description: Barang baru berhasil ditambahkan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Barang berhasil ditambahkan"
+                  data:
+                    $ref: '#/components/schemas/Barang'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Field wajib tidak diisi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: "error"
+                message: "Field nama, stok, dan harga wajib diisi"
+
+  /stok/{id}:
+    put:
+      tags:
+        - Stok
+      summary: Update data barang
+      operationId: updateBarang
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID barang yang akan diupdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBarangRequest'
+      responses:
+        '200':
+          description: Data barang berhasil diupdate.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Data barang berhasil diperbarui"
+                  data:
+                    $ref: '#/components/schemas/Barang'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Stok
+      summary: Hapus barang dari stok
+      operationId: hapusBarang
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID barang yang akan dihapus
+      responses:
+        '200':
+          description: Barang berhasil dihapus.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Barang berhasil dihapus"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # BUKU KAS
+  # ─────────────────────────────────────────────────────────────────────────
+
+  /kas:
+    get:
+      tags:
+        - Buku Kas
+      summary: Ambil daftar transaksi kas
+      description: |
+        Mengembalikan daftar transaksi kas kios yang sedang login,
+        diurutkan dari yang terbaru. Mendukung filter berdasarkan jenis transaksi.
+      operationId: getKas
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: jenis
+          in: query
+          description: Filter berdasarkan jenis transaksi
+          required: false
+          schema:
+            type: string
+            enum: [masuk, keluar]
+      responses:
+        '200':
+          description: Daftar transaksi kas berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      ringkasan:
+                        $ref: '#/components/schemas/KasRingkasan'
+                      transaksi:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Kas'
+              example:
+                status: "success"
+                data:
+                  ringkasan:
+                    saldo: 1205000
+                    total_masuk: 1550000
+                    total_keluar: 345000
+                    count_masuk: 3
+                    count_keluar: 2
+                  transaksi:
+                    - id: "kas-001"
+                      tgl: "2026-03-10"
+                      ket: "Penjualan sate siang hari"
+                      jenis: "masuk"
+                      nominal: 320000
+                      saldo: 1255000
+                      kategori: "Penjualan"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Buku Kas
+      summary: Tambah transaksi kas baru
+      operationId: tambahKas
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateKasRequest'
+            example:
+              tgl: "2026-03-11"
+              ket: "Beli arang & tusuk sate"
+              jenis: "keluar"
+              nominal: 50000
+              kategori: "Restok Bahan"
+      responses:
+        '201':
+          description: Transaksi kas berhasil disimpan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Transaksi berhasil disimpan"
+                  data:
+                    $ref: '#/components/schemas/Kas'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Field wajib tidak diisi atau nilai tidak valid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: "error"
+                message: "Field tgl, ket, jenis, dan nominal wajib diisi"
+
+  /kas/{id}:
+    put:
+      tags:
+        - Buku Kas
+      summary: Update transaksi kas
+      operationId: updateKas
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID transaksi kas yang akan diupdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateKasRequest'
+      responses:
+        '200':
+          description: Transaksi kas berhasil diupdate.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Data berhasil diupdate"
+                  data:
+                    $ref: '#/components/schemas/Kas'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Buku Kas
+      summary: Hapus transaksi kas
+      operationId: hapusKas
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID transaksi kas yang akan dihapus
+      responses:
+        '200':
+          description: Transaksi kas berhasil dihapus.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Data berhasil dihapus"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # PROMO & DISKON
+  # ─────────────────────────────────────────────────────────────────────────
+
+  /promo:
+    get:
+      tags:
+        - Promo & Diskon
+      summary: Ambil daftar promo kios
+      operationId: getPromo
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Daftar promo berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Promo'
+              example:
+                status: "success"
+                data:
+                  - id: "promo-001"
+                    nama: "Diskon Pembukaan"
+                    tipe: "Persentase"
+                    nilai: "20%"
+                    mulai: "2026-03-22"
+                    akhir: "2026-03-22"
+                    status: "aktif"
+                    poster_url: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Promo & Diskon
+      summary: Tambah promo baru
+      description: |
+        Mendukung upload gambar poster promo (opsional).
+        Jika ada poster, gunakan `multipart/form-data`.
+        Jika tidak ada poster, bisa menggunakan `application/json`.
+      operationId: tambahPromo
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreatePromoRequest'
+      responses:
+        '201':
+          description: Promo baru berhasil ditambahkan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Promo berhasil ditambahkan"
+                  data:
+                    $ref: '#/components/schemas/Promo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Field wajib tidak diisi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: "error"
+                message: "Field nama, tipe, nilai, mulai, dan akhir wajib diisi"
+
+  /promo/{id}:
+    put:
+      tags:
+        - Promo & Diskon
+      summary: Update promo
+      operationId: updatePromo
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID promo yang akan diupdate
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UpdatePromoRequest'
+      responses:
+        '200':
+          description: Promo berhasil diupdate.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Promo berhasil diperbarui"
+                  data:
+                    $ref: '#/components/schemas/Promo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Promo & Diskon
+      summary: Hapus promo
+      operationId: hapusPromo
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID promo yang akan dihapus
+      responses:
+        '200':
+          description: Promo berhasil dihapus.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Promo berhasil dihapus"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # RIWAYAT TRANSAKSI
+  # ─────────────────────────────────────────────────────────────────────────
+
+  /transaksi:
+    get:
+      tags:
+        - Riwayat Transaksi
+      summary: Ambil riwayat transaksi penjualan kios
+      description: |
+        Mengembalikan daftar riwayat transaksi penjualan kios yang sedang login.
+        Mendukung pencarian berdasarkan nama pelanggan atau nama barang.
+      operationId: getTransaksi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: Cari berdasarkan nama pelanggan atau barang
+          required: false
+          schema:
+            type: string
+          example: "Budi"
+        - name: status
+          in: query
+          description: Filter berdasarkan status transaksi
+          required: false
+          schema:
+            type: string
+            enum: [Selesai, Proses]
+      responses:
+        '200':
+          description: Riwayat transaksi berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaksi'
+              example:
+                status: "success"
+                data:
+                  - id: 134
+                    customer: "Pak Budi"
+                    item: "Sate Blengong × 2"
+                    total: 50000
+                    time: "2026-03-10T11:24:00+07:00"
+                    status: "Selesai"
+                    kiosk: "Sate Blengong Bu Yati · Stand A-12"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # NOTIFIKASI
+  # ─────────────────────────────────────────────────────────────────────────
+
+  /notifikasi:
+    get:
+      tags:
+        - Notifikasi
+      summary: Ambil daftar notifikasi kios
+      description: |
+        Mengembalikan semua notifikasi milik kios yang sedang login.
+        Diurutkan dari yang terbaru. Mendukung filter berdasarkan status baca.
+      operationId: getNotifikasi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: filter
+          in: query
+          description: Filter notifikasi berdasarkan status baca
+          required: false
+          schema:
+            type: string
+            enum: [semua, belum, sudah]
+            default: semua
+      responses:
+        '200':
+          description: Daftar notifikasi berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      unread_count:
+                        type: integer
+                        example: 3
+                      notifikasi:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Notifikasi'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /notifikasi/{id}/baca:
+    patch:
+      tags:
+        - Notifikasi
+      summary: Tandai satu notifikasi sebagai sudah dibaca
+      operationId: bacaNotifikasi
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID notifikasi yang akan ditandai dibaca
+      responses:
+        '200':
+          description: Notifikasi berhasil ditandai sudah dibaca.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Notifikasi ditandai sudah dibaca"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notifikasi/baca-semua:
+    patch:
+      tags:
+        - Notifikasi
+      summary: Tandai semua notifikasi sebagai sudah dibaca
+      operationId: bacaSemuaNotifikasi
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Semua notifikasi berhasil ditandai sudah dibaca.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Semua notifikasi ditandai sudah dibaca"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # PROFIL & PENGATURAN
+  # ─────────────────────────────────────────────────────────────────────────
+
+  /profil:
+    get:
+      tags:
+        - Profil & Pengaturan
+      summary: Ambil profil UMKM yang sedang login
+      operationId: getProfil
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Data profil berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    $ref: '#/components/schemas/UmkmProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    patch:
+      tags:
+        - Profil & Pengaturan
+      summary: Update profil UMKM (nama, alamat, deskripsi usaha)
+      description: |
+        Memperbarui informasi profil UMKM. Field yang tidak disertakan tidak akan diubah.
+        Digunakan oleh `ProfileForm.jsx` di halaman Pengaturan.
+      operationId: updateProfil
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfilRequest'
+            example:
+              nama_pemilik: "Bu Yati Wulandari"
+              nama_usaha: "Sate Blengong Bu Yati"
+              alamat: "Jl. Merdeka No.5, Banyumas"
+              kategori: "Kuliner"
+              deskripsi: "Sate khas Banyumas"
+      responses:
+        '200':
+          description: Profil berhasil diperbarui.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Profil berhasil diperbarui"
+                  data:
+                    $ref: '#/components/schemas/UmkmProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /pengaturan/password:
+    patch:
+      tags:
+        - Profil & Pengaturan
+      summary: Ganti password akun
+      description: |
+        Memperbarui password akun UMKM. Memerlukan password lama untuk verifikasi.
+        Digunakan oleh `SecurityForm.jsx` di halaman Pengaturan.
+      operationId: gantiPassword
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GantiPasswordRequest'
+            example:
+              password_lama: "password_lama"
+              password_baru: "password_baru_kuat"
+              konfirmasi_password: "password_baru_kuat"
+      responses:
+        '200':
+          description: Password berhasil diubah.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Password berhasil diubah"
+        '400':
+          description: Password lama salah atau password baru tidak cocok.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                password_lama_salah:
+                  summary: Password lama tidak sesuai
+                  value:
+                    status: "error"
+                    message: "Password lama tidak sesuai"
+                konfirmasi_tidak_cocok:
+                  summary: Konfirmasi tidak cocok
+                  value:
+                    status: "error"
+                    message: "Password baru dan konfirmasi tidak sama"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # PUBLIK — Diakses oleh Gate sebagai proxy (REQ-INTEG-001 Gate)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  /public/tenant:
+    get:
+      tags:
+        - Publik (Gate Integration)
+      summary: Ambil daftar tenant UMKM yang aktif (publik)
+      description: |
+        Endpoint **publik tanpa autentikasi** yang dipanggil oleh backend Gate
+        sebagai proxy (`GET /umkm` di openapi Gate — REQ-INTEG-001).
+
+        Gate memanggil endpoint ini menggunakan `UMKM_API_URL` yang dikonfigurasi
+        via environment variable. Response format disesuaikan dengan schema
+        `TenantUmkm` yang diharapkan Gate.
+
+        Hanya mengembalikan UMKM dengan `status_pendaftaran = approved`.
+      operationId: getPublicTenant
+      parameters:
+        - name: kategori
+          in: query
+          description: Filter berdasarkan kategori produk (makanan, fashion, kerajinan, dll)
+          required: false
+          schema:
+            type: string
+          example: "makanan"
+        - name: is_aktif
+          in: query
+          description: Filter hanya tenant yang aktif berpartisipasi (default true)
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Daftar tenant UMKM aktif berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TenantPublik'
+              example:
+                status: "success"
+                data:
+                  - id: "umkm-001"
+                    nama_tenant: "Sate Blengong Bu Yati"
+                    kategori: "makanan"
+                    nomor_stand: "A-12"
+                    deskripsi: "Sate khas Banyumas dengan bumbu spesial"
+                    created_at: "2026-01-15T08:00:00+07:00"
+
+  /public/diskon:
+    get:
+      tags:
+        - Publik (Gate Integration)
+      summary: Ambil daftar diskon/benefit yang berlaku dari semua tenant (publik)
+      description: |
+        Endpoint **publik tanpa autentikasi** yang digunakan Gate untuk
+        menampilkan benefit diskon kepada member yang tap NFC.
+
+        Dipanggil dari endpoint `GET /discounts` di Gate (REQ-MEMBER-002),
+        yang mengisi tabel `DISKON_MEMBER` dan `TENANT_UMKM` di sisi Gate.
+
+        Hanya mengembalikan promo dengan status `aktif` dari UMKM yang approved.
+      operationId: getPublicDiskon
+      parameters:
+        - name: is_aktif
+          in: query
+          description: Filter hanya diskon yang sedang aktif (default true)
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: tenant_id
+          in: query
+          description: Filter diskon berdasarkan tenant tertentu
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daftar diskon aktif berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DiskonPublik'
+              example:
+                status: "success"
+                data:
+                  - id: "promo-001"
+                    tenant_id: "umkm-001"
+                    nama_tenant: "Sate Blengong Bu Yati"
+                    nomor_stand: "A-12"
+                    deskripsi_diskon: "Diskon Pembukaan 20% untuk semua menu"
+                    persentase_diskon: 20.00
+                    berlaku_mulai: "2026-03-22"
+                    berlaku_hingga: "2026-03-22"
+                    is_aktif: true
+
+# ═══════════════════════════════════════════════════════════════════════════
+# COMPONENTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+components:
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Token yang diperoleh dari `POST /api/auth/login`.
+        Format: `Authorization: Bearer <token>`
+
+  schemas:
+
+    # ── AUTH ──────────────────────────────────────────────────────────────
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: "buyati@gmail.com"
+        password:
+          type: string
+          format: password
+          example: "password_rahasia"
+
+    LoginResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        message:
+          type: string
+          example: "Login berhasil"
+        data:
+          type: object
+          properties:
+            token:
+              type: string
+              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            user:
+              $ref: '#/components/schemas/UmkmProfile'
+
+    RegisterRequest:
+      type: object
+      required: [nama_pemilik, email, password, nama_usaha, alamat, kategori, kios_id, file_ktp, file_nib, setuju]
+      properties:
+        nama_pemilik:
+          type: string
+          maxLength: 100
+          example: "Bu Yati Wulandari"
+        email:
+          type: string
+          format: email
+          example: "buyati@gmail.com"
+        password:
+          type: string
+          format: password
+          minLength: 6
+          example: "password_rahasia"
+        nama_usaha:
+          type: string
+          maxLength: 150
+          example: "Sate Blengong Bu Yati"
+        alamat:
+          type: string
+          example: "Jl. Merdeka No.5, Banyumas"
+        kategori:
+          type: string
+          enum: [Kuliner, Fashion, Kerajinan, Lainnya]
+          example: "Kuliner"
+        deskripsi:
+          type: string
+          example: "Sate khas Banyumas dengan bumbu spesial"
+        kios_id:
+          type: string
+          description: ID kios yang dipilih (contoh A-12, B-03)
+          example: "A-12"
+        file_ktp:
+          type: string
+          format: binary
+          description: File KTP pemilik (JPG/PNG/PDF, maks 5MB)
+        file_nib:
+          type: string
+          format: binary
+          description: File NIB usaha (JPG/PNG/PDF, maks 5MB)
+        setuju:
+          type: boolean
+          description: Persetujuan syarat & ketentuan (harus true)
+          example: true
+
+    # ── UMKM PROFILE ──────────────────────────────────────────────────────
+
+    UmkmProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+        nama_pemilik:
+          type: string
+          example: "Bu Yati Wulandari"
+        email:
+          type: string
+          format: email
+          example: "buyati@gmail.com"
+        nama_usaha:
+          type: string
+          example: "Sate Blengong Bu Yati"
+        alamat:
+          type: string
+          example: "Jl. Merdeka No.5, Banyumas"
+        kategori:
+          type: string
+          enum: [Kuliner, Fashion, Kerajinan, Lainnya]
+          example: "Kuliner"
+        deskripsi:
+          type: string
+          nullable: true
+          example: "Sate khas Banyumas dengan bumbu spesial"
+        nomor_stand:
+          type: string
+          example: "A-12"
+        zona:
+          type: string
+          example: "Kuliner"
+        status_pendaftaran:
+          type: string
+          enum: [pending, approved, rejected]
+          example: "approved"
+        stats:
+          type: object
+          description: Statistik ringkasan (hanya tersedia saat login)
+          properties:
+            total_produk:
+              type: integer
+              example: 6
+            total_transaksi:
+              type: integer
+              example: 134
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-01-15T08:00:00+07:00"
+
+    UpdateProfilRequest:
+      type: object
+      description: Semua field opsional — hanya field yang disertakan yang diupdate
+      properties:
+        nama_pemilik:
+          type: string
+          maxLength: 100
+        nama_usaha:
+          type: string
+          maxLength: 150
+        alamat:
+          type: string
+        kategori:
+          type: string
+          enum: [Kuliner, Fashion, Kerajinan, Lainnya]
+        deskripsi:
+          type: string
+
+    GantiPasswordRequest:
+      type: object
+      required: [password_lama, password_baru, konfirmasi_password]
+      properties:
+        password_lama:
+          type: string
+          format: password
+        password_baru:
+          type: string
+          format: password
+          minLength: 6
+        konfirmasi_password:
+          type: string
+          format: password
+
+    # ── DASHBOARD ─────────────────────────────────────────────────────────
+
+    DashboardResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        data:
+          type: object
+          properties:
+            stats:
+              type: object
+              properties:
+                total_produk:
+                  type: integer
+                  example: 6
+                omset_hari_ini:
+                  type: integer
+                  description: Dalam rupiah
+                  example: 320000
+                transaksi_hari_ini:
+                  type: integer
+                  example: 12
+                stok_kritis:
+                  type: integer
+                  description: Jumlah produk dengan stok ≤ 5
+                  example: 2
+            chart_penjualan:
+              type: array
+              description: Data chart 7 hari terakhir
+              items:
+                type: object
+                properties:
+                  label:
+                    type: string
+                    example: "Sen"
+                  pendapatan:
+                    type: integer
+                    example: 550000
+                  jumlah_transaksi:
+                    type: integer
+                    example: 8
+            transaksi_terakhir:
+              type: array
+              description: 5 transaksi paling baru
+              items:
+                $ref: '#/components/schemas/Transaksi'
+            ringkasan_stok:
+              type: array
+              description: Semua produk dengan info persentase stok
+              items:
+                $ref: '#/components/schemas/Barang'
+
+    # ── STOK ──────────────────────────────────────────────────────────────
+
+    Barang:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "barang-001"
+        nama:
+          type: string
+          example: "Sate Blengong Spesial"
+        stok:
+          type: integer
+          example: 24
+        max:
+          type: integer
+          description: Kapasitas stok maksimum (untuk progress bar)
+          example: 50
+        harga:
+          type: integer
+          description: Harga satuan dalam rupiah
+          example: 25000
+        kategori:
+          type: string
+          example: "Makanan"
+        satuan:
+          type: string
+          example: "porsi"
+        deskripsi:
+          type: string
+          nullable: true
+          example: "Sate khas Banyumas"
+
+    CreateBarangRequest:
+      type: object
+      required: [nama, stok, harga]
+      properties:
+        nama:
+          type: string
+          maxLength: 150
+          example: "Mendoan Jumbo"
+        stok:
+          type: integer
+          minimum: 0
+          example: 100
+        harga:
+          type: integer
+          minimum: 0
+          description: Harga satuan dalam rupiah
+          example: 5000
+        kategori:
+          type: string
+          enum: [Makanan, Minuman, Camilan, Fashion, Kerajinan, Lainnya]
+          example: "Camilan"
+        satuan:
+          type: string
+          example: "pcs"
+        deskripsi:
+          type: string
+          nullable: true
+
+    UpdateBarangRequest:
+      type: object
+      description: Semua field opsional — hanya field yang disertakan yang diupdate
+      properties:
+        nama:
+          type: string
+          maxLength: 150
+        stok:
+          type: integer
+          minimum: 0
+        harga:
+          type: integer
+          minimum: 0
+        kategori:
+          type: string
+          enum: [Makanan, Minuman, Camilan, Fashion, Kerajinan, Lainnya]
+        satuan:
+          type: string
+        deskripsi:
+          type: string
+          nullable: true
+
+    # ── BUKU KAS ──────────────────────────────────────────────────────────
+
+    Kas:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "kas-001"
+        tgl:
+          type: string
+          format: date
+          example: "2026-03-10"
+        ket:
+          type: string
+          example: "Penjualan sate siang hari"
+        jenis:
+          type: string
+          enum: [masuk, keluar]
+          example: "masuk"
+        nominal:
+          type: integer
+          description: Dalam rupiah
+          example: 320000
+        saldo:
+          type: integer
+          description: Saldo kumulatif setelah transaksi ini, dalam rupiah
+          example: 1255000
+        kategori:
+          type: string
+          example: "Penjualan"
+
+    KasRingkasan:
+      type: object
+      properties:
+        saldo:
+          type: integer
+          description: Saldo saat ini (total masuk - total keluar)
+          example: 1205000
+        total_masuk:
+          type: integer
+          example: 1550000
+        total_keluar:
+          type: integer
+          example: 345000
+        count_masuk:
+          type: integer
+          example: 3
+        count_keluar:
+          type: integer
+          example: 2
+
+    CreateKasRequest:
+      type: object
+      required: [tgl, ket, jenis, nominal]
+      properties:
+        tgl:
+          type: string
+          format: date
+          example: "2026-03-11"
+        ket:
+          type: string
+          maxLength: 255
+          example: "Beli arang & tusuk sate"
+        jenis:
+          type: string
+          enum: [masuk, keluar]
+          example: "keluar"
+        nominal:
+          type: integer
+          minimum: 1
+          example: 50000
+        kategori:
+          type: string
+          nullable: true
+          example: "Restok Bahan"
+
+    UpdateKasRequest:
+      type: object
+      description: Semua field opsional — hanya field yang disertakan yang diupdate
+      properties:
+        tgl:
+          type: string
+          format: date
+        ket:
+          type: string
+          maxLength: 255
+        jenis:
+          type: string
+          enum: [masuk, keluar]
+        nominal:
+          type: integer
+          minimum: 1
+        kategori:
+          type: string
+          nullable: true
+
+    # ── PROMO ─────────────────────────────────────────────────────────────
+
+    Promo:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "promo-001"
+        nama:
+          type: string
+          example: "Diskon Pembukaan"
+        tipe:
+          type: string
+          enum: [Persentase, Nominal, BeliXGratisY, GratisOngkir, Lainnya]
+          example: "Persentase"
+        nilai:
+          type: string
+          description: Nilai promo sesuai tipe (mis. "20%", "10000", "B2G1")
+          example: "20%"
+        mulai:
+          type: string
+          format: date
+          example: "2026-03-22"
+        akhir:
+          type: string
+          format: date
+          example: "2026-03-22"
+        status:
+          type: string
+          enum: [aktif, nonaktif]
+          example: "aktif"
+        poster_url:
+          type: string
+          format: uri
+          nullable: true
+          description: URL gambar poster promo (dari Supabase Storage)
+          example: null
+
+    CreatePromoRequest:
+      type: object
+      required: [nama, tipe, nilai, mulai, akhir]
+      properties:
+        nama:
+          type: string
+          maxLength: 150
+          example: "Diskon Pembukaan"
+        tipe:
+          type: string
+          enum: [Persentase, Nominal, BeliXGratisY, GratisOngkir, Lainnya]
+          example: "Persentase"
+        nilai:
+          type: string
+          example: "20%"
+        mulai:
+          type: string
+          format: date
+          example: "2026-03-22"
+        akhir:
+          type: string
+          format: date
+          example: "2026-03-22"
+        file_poster:
+          type: string
+          format: binary
+          description: Gambar poster promo (opsional, JPG/PNG, maks 5MB)
+
+    UpdatePromoRequest:
+      type: object
+      description: Semua field opsional — hanya field yang disertakan yang diupdate
+      properties:
+        nama:
+          type: string
+          maxLength: 150
+        tipe:
+          type: string
+          enum: [Persentase, Nominal, BeliXGratisY, GratisOngkir, Lainnya]
+        nilai:
+          type: string
+        mulai:
+          type: string
+          format: date
+        akhir:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [aktif, nonaktif]
+        file_poster:
+          type: string
+          format: binary
+          nullable: true
+
+    # ── TRANSAKSI ─────────────────────────────────────────────────────────
+
+    Transaksi:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 134
+        customer:
+          type: string
+          example: "Pak Budi"
+        item:
+          type: string
+          example: "Sate Blengong × 2"
+        total:
+          type: integer
+          description: Total transaksi dalam rupiah
+          example: 50000
+        time:
+          type: string
+          format: date-time
+          example: "2026-03-10T11:24:00+07:00"
+        status:
+          type: string
+          enum: [Selesai, Proses]
+          example: "Selesai"
+        kiosk:
+          type: string
+          example: "Sate Blengong Bu Yati · Stand A-12"
+
+    # ── NOTIFIKASI ────────────────────────────────────────────────────────
+
+    Notifikasi:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "notif-001"
+        title:
+          type: string
+          example: "Stok Mendoan Jumbo Hampir Habis"
+        desc:
+          type: string
+          example: "Sisa 4 pcs — di bawah batas minimum (20 pcs)."
+        type:
+          type: string
+          enum: [stok, transaksi, promo, info]
+          example: "stok"
+        time:
+          type: string
+          format: date-time
+          example: "2026-03-13T07:00:00+07:00"
+        read:
+          type: boolean
+          example: false
+        detail:
+          type: object
+          description: Detail informasi tambahan sesuai tipe notifikasi
+          additionalProperties: true
+          example:
+            produk: "Mendoan Jumbo"
+            stokSisa: "4 pcs"
+            stokMinimum: "20 pcs"
+            kategori: "Camilan"
+            saran: "Segera lakukan restok."
+
+    # ── PUBLIK (Gate Integration) ──────────────────────────────────────────
+
+    TenantPublik:
+      type: object
+      description: |
+        Data tenant UMKM untuk dikonsumsi Gate sebagai proxy.
+        Format disesuaikan dengan schema `TenantUmkm` di openapi Gate.
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "umkm-001"
+        nama_tenant:
+          type: string
+          example: "Sate Blengong Bu Yati"
+        kategori:
+          type: string
+          example: "makanan"
+        nomor_stand:
+          type: string
+          example: "A-12"
+        deskripsi:
+          type: string
+          nullable: true
+          example: "Sate khas Banyumas dengan bumbu spesial"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-01-15T08:00:00+07:00"
+
+    DiskonPublik:
+      type: object
+      description: |
+        Data diskon tenant untuk dikonsumsi Gate.
+        Format disesuaikan dengan schema `DiskonMember` di openapi Gate.
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "promo-001"
+        tenant_id:
+          type: string
+          format: uuid
+          example: "umkm-001"
+        nama_tenant:
+          type: string
+          example: "Sate Blengong Bu Yati"
+        nomor_stand:
+          type: string
+          example: "A-12"
+        deskripsi_diskon:
+          type: string
+          example: "Diskon Pembukaan 20% untuk semua menu"
+        persentase_diskon:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 100
+          description: 0 jika diskon non-persentase
+          example: 20.00
+        berlaku_mulai:
+          type: string
+          format: date
+          example: "2026-03-22"
+        berlaku_hingga:
+          type: string
+          format: date
+          example: "2026-03-22"
+        is_aktif:
+          type: boolean
+          example: true
+
+    # ── ERROR ─────────────────────────────────────────────────────────────
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "error"
+        message:
+          type: string
+          example: "Terjadi kesalahan pada server"
+
+  responses:
+    Unauthorized:
+      description: Token JWT tidak ada, kadaluarsa, atau tidak valid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: "error"
+            message: "Token tidak valid atau telah kadaluarsa. Silakan login kembali."
+
+    NotFound:
+      description: Data tidak ditemukan.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: "error"
+            message: "Data tidak ditemukan"
