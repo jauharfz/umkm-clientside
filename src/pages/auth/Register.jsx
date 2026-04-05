@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 
@@ -11,19 +11,19 @@ const STEPS = [
 ];
 
 const KIOS_DATA = [
-    { id: "A-01", zona: "A", harga: 500000, status: "available", ukuran: "3×3m" },
-    { id: "A-02", zona: "A", harga: 500000, status: "full",      ukuran: "3×3m" },
-    { id: "A-03", zona: "A", harga: 500000, status: "available", ukuran: "3×3m" },
-    { id: "A-04", zona: "A", harga: 500000, status: "full",      ukuran: "3×3m" },
-    { id: "A-05", zona: "A", harga: 500000, status: "available", ukuran: "3×3m" },
-    { id: "A-06", zona: "A", harga: 500000, status: "available", ukuran: "3×3m" },
-    { id: "B-01", zona: "B", harga: 600000, status: "available", ukuran: "4×3m" },
-    { id: "B-02", zona: "B", harga: 600000, status: "full",      ukuran: "4×3m" },
-    { id: "B-03", zona: "B", harga: 600000, status: "available", ukuran: "4×3m" },
-    { id: "B-04", zona: "B", harga: 600000, status: "available", ukuran: "4×3m" },
-    { id: "C-01", zona: "C", harga: 450000, status: "available", ukuran: "2×3m" },
-    { id: "C-02", zona: "C", harga: 450000, status: "full",      ukuran: "2×3m" },
-    { id: "C-03", zona: "C", harga: 450000, status: "available", ukuran: "2×3m" },
+    { id: "A-01", zona: "A", harga: 500000, ukuran: "3×3m" },
+    { id: "A-02", zona: "A", harga: 500000, ukuran: "3×3m" },
+    { id: "A-03", zona: "A", harga: 500000, ukuran: "3×3m" },
+    { id: "A-04", zona: "A", harga: 500000, ukuran: "3×3m" },
+    { id: "A-05", zona: "A", harga: 500000, ukuran: "3×3m" },
+    { id: "A-06", zona: "A", harga: 500000, ukuran: "3×3m" },
+    { id: "B-01", zona: "B", harga: 600000, ukuran: "4×3m" },
+    { id: "B-02", zona: "B", harga: 600000, ukuran: "4×3m" },
+    { id: "B-03", zona: "B", harga: 600000, ukuran: "4×3m" },
+    { id: "B-04", zona: "B", harga: 600000, ukuran: "4×3m" },
+    { id: "C-01", zona: "C", harga: 450000, ukuran: "2×3m" },
+    { id: "C-02", zona: "C", harga: 450000, ukuran: "2×3m" },
+    { id: "C-03", zona: "C", harga: 450000, ukuran: "2×3m" },
 ];
 
 const ZONA_INFO = {
@@ -124,16 +124,27 @@ export default function Register() {
     const [errors, setErrors]         = useState({});
     const [submitting, setSubmitting] = useState(false);
     const [apiError, setApiError]     = useState("");
+    // FIX: state untuk kios yang sudah terpakai dari API real-time
+    const [occupiedStands, setOccupiedStands] = useState([]);
+    const [kiosLoading, setKiosLoading]       = useState(false);
     const [formData, setFormData]     = useState({
-        // Akun (wajib untuk bisa login)
         email: "", password: "", konfirmasiPassword: "",
-        // Data usaha
         namaUsaha: "", alamat: "", kategori: "", deskripsi: "",
-        // Dokumen
         ktp: null, nib: null,
-        // S&K & kios
         setuju: false, kios: null,
     });
+
+    // FIX: fetch stand terpakai dari backend saat masuk step 4
+    useEffect(() => {
+        if (step !== 4) return;
+        setKiosLoading(true);
+        // Endpoint publik, tidak perlu token
+        fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000/api"}/public/kios-tersedia`)
+            .then(r => r.json())
+            .then(res => setOccupiedStands(res.data || []))
+            .catch(() => {}) // silently fail — frontend tetap bisa pilih kios
+            .finally(() => setKiosLoading(false));
+    }, [step]);
 
     const handleChange = (e) => {
         const { name, value, type, checked, files } = e.target;
@@ -395,6 +406,7 @@ export default function Register() {
                                             {label}
                                         </div>
                                     ))}
+                                    {kiosLoading && <span style={{ fontSize: 12, color: "#9ca3af" }}>⏳ Memuat status kios...</span>}
                                 </div>
 
                                 {zonas.map((zona) => {
@@ -408,7 +420,8 @@ export default function Register() {
                       </span>
                                             <div className="kios-grid">
                                                 {kiosZ.map((kios) => {
-                                                    const isFull = kios.status === "full";
+                                                    // FIX: status real-time dari API, bukan hardcode
+                                                    const isFull = occupiedStands.includes(kios.id);
                                                     const isSel  = formData.kios?.id === kios.id;
                                                     return (
                                                         <div key={kios.id}
@@ -422,7 +435,7 @@ export default function Register() {
                                                             <div className="kios-id">{kios.id}</div>
                                                             <div className="kios-size">{kios.ukuran}</div>
                                                             <div className="kios-price">Rp {(kios.harga / 1000).toFixed(0)}rb</div>
-                                                            <div className={`kios-status ${kios.status}`}>{isFull ? "Terisi" : "Tersedia"}</div>
+                                                            <div className={`kios-status ${isFull ? "full" : "available"}`}>{isFull ? "Terisi" : "Tersedia"}</div>
                                                         </div>
                                                     );
                                                 })}

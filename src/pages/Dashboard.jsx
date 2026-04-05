@@ -6,23 +6,67 @@ import api, { getUser } from "../services/api";
 
 // ── COUNTDOWN ───────────────────────────────────────────
 function Countdown() {
-    const [time, setTime] = useState({ d: "00", j: "00", m: "00" });
+    const [state, setState] = useState("loading"); // "loading"|"countdown"|"ongoing"|"none"
+    const [time,  setTime]  = useState({ d: "00", j: "00", m: "00" });
 
     useEffect(() => {
-        function tick() {
-            const diff = new Date("2026-03-22T08:00:00+07:00") - new Date();
-            if (diff <= 0) return;
-            setTime({
-                d: String(Math.floor(diff / 86400000)).padStart(2, "0"),
-                j: String(Math.floor((diff % 86400000) / 3600000)).padStart(2, "0"),
-                m: String(Math.floor((diff % 3600000) / 60000)).padStart(2, "0"),
-            });
-        }
-        tick();
-        const id = setInterval(tick, 60000);
-        return () => clearInterval(id);
+        // FIX: fetch dari /api/public/event — proxy UMKM ke Gate.
+        // Endpoint publik, tidak butuh token.
+        const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+        let clearTimer;
+
+        fetch(`${API_URL}/public/event`)
+            .then(r => r.json())
+            .then(res => {
+                const ev = res?.data;
+                if (!ev) { setState("none"); return; }
+
+                // Event aktif → sedang berlangsung sekarang
+                if (ev.status === "aktif") { setState("ongoing"); return; }
+
+                // Event mendatang: Gate DB hanya simpan DATE (tanpa jam).
+                // Default jam mulai: 08:00 WIB (UTC+7) — sesuai kebijakan event.
+                const target = new Date(`${ev.tanggal}T08:00:00+07:00`);
+                if (target <= new Date()) { setState("ongoing"); return; }
+
+                setState("countdown");
+                function tick() {
+                    const diff = target - new Date();
+                    if (diff <= 0) { setState("ongoing"); return; }
+                    setTime({
+                        d: String(Math.floor(diff / 86400000)).padStart(2, "0"),
+                        j: String(Math.floor((diff % 86400000) / 3600000)).padStart(2, "0"),
+                        m: String(Math.floor((diff % 3600000) / 60000)).padStart(2, "0"),
+                    });
+                }
+                tick();
+                const id = setInterval(tick, 60000);
+                clearTimer = () => clearInterval(id);
+            })
+            .catch(() => setState("none"));
+
+        return () => clearTimer?.();
     }, []);
 
+    if (state === "loading") return null;
+
+    if (state === "none") return (
+        <div className="cd-boxes" style={{ alignItems: "center" }}>
+            <span style={{ fontSize: 13, color: "rgba(255,255,255,.65)", fontStyle: "italic" }}>
+                Belum ada event mendatang
+            </span>
+        </div>
+    );
+
+    if (state === "ongoing") return (
+        <div className="cd-boxes" style={{ alignItems: "center" }}>
+            <span style={{ fontSize: 14, color: "rgba(255,255,255,.9)", fontWeight: 600 }}>
+                🎉 Acara sedang berlangsung!
+            </span>
+        </div>
+    );
+
+    // state === "countdown"
     return (
         <div className="cd-boxes">
             {[["d", "HARI"], ["j", "JAM"], ["m", "MENIT"]].map(([k, u]) => (
@@ -57,12 +101,21 @@ export default function Dashboard() {
 
     const [stats,    setStats]   = useState(null);
     const [loading,  setLoading] = useState(true);
+    // FIX: simpan info event aktif untuk ditampilkan di banner
+    const [activeEvent, setActiveEvent] = useState(null);
 
     useEffect(() => {
         api.get("/dashboard")
             .then(res => setStats(res.data))
             .catch(() => {})
             .finally(() => setLoading(false));
+
+        // Fetch event info untuk nama event di banner (publik, no auth)
+        const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+        fetch(`${API_URL}/public/event`)
+            .then(r => r.json())
+            .then(res => { if (res?.data) setActiveEvent(res.data); })
+            .catch(() => {});
     }, []);
 
     const namaDepan   = user?.nama_pemilik?.split(" ")[0] || "Pengguna";
@@ -111,8 +164,9 @@ export default function Dashboard() {
             <div className="cd-banner">
                 <div>
                     <div className="cd-lbl">Acara Dimulai Dalam</div>
-                    <div className="cd-title">Peken Banyumas 2026</div>
-                    <div className="cd-sub">{stand} · Zona {zona} · Masuk Gratis</div>
+                    {/* FIX: nama event dari Gate, bukan hardcode */}
+                    <div className="cd-title">{activeEvent?.nama_event || "Peken Banyumas"}</div>
+                    <div className="cd-sub">{stand} · Zona {zona} · {activeEvent?.lokasi || "Masuk Gratis"}</div>
                 </div>
                 <Countdown />
             </div>

@@ -1,7 +1,13 @@
 import { useState, useRef } from "react";
 import "../../assets/styles/promo.css";
+import { getUser } from "../../services/api";
 
 export default function TambahPromoModal({ show, onClose, onSave, onToast }) {
+  // FIX: ambil info user dari localStorage, bukan hardcode
+  const user = getUser();
+  const namaUsaha  = user?.nama_usaha  || "Kios Saya";
+  const nomorStand = user?.nomor_stand || "—";
+
   const [form, setForm] = useState({
     nama: "",
     tipe: "Persentase",
@@ -20,9 +26,7 @@ export default function TambahPromoModal({ show, onClose, onSave, onToast }) {
   const handleFile = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    // FIX: simpan File object (bukan base64), agar bisa dikirim via FormData
     set("file_poster", file);
-    // Preview tetap pakai FileReader
     const reader = new FileReader();
     reader.onload = (ev) => setPosterPreview(ev.target.result);
     reader.readAsDataURL(file);
@@ -34,7 +38,6 @@ export default function TambahPromoModal({ show, onClose, onSave, onToast }) {
       return;
     }
     onSave({ ...form });
-    // reset
     setForm({ nama: "", tipe: "Persentase", nilai: "", mulai: "", akhir: "", file_poster: null });
     setPosterPreview(null);
   };
@@ -54,14 +57,15 @@ export default function TambahPromoModal({ show, onClose, onSave, onToast }) {
             <h3 className="pd-modal-title">Tambah Promo</h3>
           </div>
           <div className="pd-modal-hd-right">
-            <span className="pd-kios-tag">Stand A-12</span>
+            {/* FIX: tampilkan stand dan nama usaha dari data user nyata */}
+            <span className="pd-kios-tag">Stand {nomorStand}</span>
             <button className="pd-modal-x" onClick={handleClose}>✕</button>
           </div>
         </div>
 
         {/* KIOS NOTE */}
         <div className="pd-modal-note">
-          Promo ini berlaku khusus untuk kios <strong>Sate Blengong Bu Yati</strong>
+          Promo ini berlaku khusus untuk kios <strong>{namaUsaha}</strong>
         </div>
 
         {/* BODY */}

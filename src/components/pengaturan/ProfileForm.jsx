@@ -1,20 +1,24 @@
 import { useState, useEffect } from "react";
 import "../../assets/styles/settings.css";
-import api from "../../services/api";
+import api, { getUser, setUser } from "../../services/api";
 
 export default function ProfileForm({ onToast }) {
-  const [form, setForm]     = useState({ nama: "", telepon: "", email: "" });
-  const [original, setOriginal] = useState({ nama: "", telepon: "", email: "" });
+  // FIX: form hanya field yang didukung backend (nama_pemilik, nama_usaha, alamat, deskripsi)
+  // Field telepon dihapus — backend schema tidak menerima field ini
+  const [form, setForm]         = useState({ nama: "", namaUsaha: "", alamat: "", deskripsi: "" });
+  const [original, setOriginal] = useState({ nama: "", namaUsaha: "", alamat: "", deskripsi: "" });
   const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
     api.get("/profil")
       .then(res => {
+        // FIX: response adalah { status, data: {...} } → ambil res.data
         const d = res.data || res;
         const init = {
-          nama:    d.nama_pemilik || d.nama || "",
-          telepon: d.telepon || d.phone || "",
-          email:   d.email || "",
+          nama:      d.nama_pemilik || "",
+          namaUsaha: d.nama_usaha   || "",
+          alamat:    d.alamat       || "",
+          deskripsi: d.deskripsi    || "",
         };
         setForm(init);
         setOriginal(init);
@@ -26,17 +30,31 @@ export default function ProfileForm({ onToast }) {
   const set = (key, val) => setForm((prev) => ({ ...prev, [key]: val }));
 
   const handleSave = async () => {
-    if (!form.nama || !form.telepon || !form.email) {
-      onToast("⚠️ Semua field wajib diisi!", "warning");
+    if (!form.nama) {
+      onToast("⚠️ Nama lengkap wajib diisi!", "warning");
       return;
     }
     try {
       await api.patch("/profil", {
         nama_pemilik: form.nama,
-        telepon:      form.telepon,
-        email:        form.email,
+        nama_usaha:   form.namaUsaha,
+        alamat:       form.alamat,
+        deskripsi:    form.deskripsi,
       });
       setOriginal({ ...form });
+
+      // FIX: update localStorage agar Dashboard & Layout langsung sinkron
+      const currentUser = getUser();
+      if (currentUser) {
+        setUser({
+          ...currentUser,
+          nama_pemilik: form.nama,
+          nama_usaha:   form.namaUsaha,
+          alamat:       form.alamat,
+          deskripsi:    form.deskripsi,
+        });
+      }
+
       onToast("✅ Data diri berhasil disimpan!");
     } catch (err) {
       onToast(err.message || "❌ Gagal menyimpan data", "danger");
@@ -65,24 +83,31 @@ export default function ProfileForm({ onToast }) {
             />
           </div>
 
-          <div className="st-row">
-            <div className="st-fg">
-              <label>No. Telepon</label>
-              <input
-                value={form.telepon}
-                onChange={(e) => set("telepon", e.target.value)}
-                placeholder="08xx-xxxx-xxxx"
-              />
-            </div>
-            <div className="st-fg">
-              <label>Email</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => set("email", e.target.value)}
-                placeholder="email@contoh.com"
-              />
-            </div>
+          <div className="st-fg st-full">
+            <label>Nama Usaha</label>
+            <input
+              value={form.namaUsaha}
+              onChange={(e) => set("namaUsaha", e.target.value)}
+              placeholder="Nama usaha kamu"
+            />
+          </div>
+
+          <div className="st-fg st-full">
+            <label>Alamat</label>
+            <input
+              value={form.alamat}
+              onChange={(e) => set("alamat", e.target.value)}
+              placeholder="Alamat usaha kamu"
+            />
+          </div>
+
+          <div className="st-fg st-full">
+            <label>Deskripsi</label>
+            <input
+              value={form.deskripsi}
+              onChange={(e) => set("deskripsi", e.target.value)}
+              placeholder="Deskripsi singkat usaha kamu"
+            />
           </div>
 
           <div className="st-form-act">
@@ -94,3 +119,4 @@ export default function ProfileForm({ onToast }) {
     </div>
   );
 }
+
