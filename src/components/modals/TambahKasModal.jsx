@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { getUser } from "../../services/api";
 
 const todayISO = () => new Date().toISOString().split("T")[0];
 
 export default function TambahKasModal({ show, onClose, onSave }) {
+  const user  = getUser();
+  const stand = user?.nomor_stand || "—";
   const [form, setForm] = useState({
     ket: "", jenis: "masuk", nominal: "", tgl: todayISO(), kategori: "Penjualan",
   });
@@ -31,7 +34,7 @@ export default function TambahKasModal({ show, onClose, onSave }) {
         <div className="bk-modal-hd">
           <div className="bk-modal-hd-left">
             <h3>Tambah Transaksi Kas</h3>
-            <span className="bk-stand-tag">Stand A-12</span>
+            {stand !== "—" && <span className="bk-stand-tag">Stand {stand}</span>}
           </div>
           <button className="bk-modal-close" onClick={onClose}>✕</button>
         </div>

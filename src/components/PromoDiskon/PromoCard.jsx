@@ -12,7 +12,7 @@ const TIPE_BG = {
   BeliXGratisY: "#fdecea",
 };
 
-export default function PromoCard({ item, onEdit, onDelete }) {
+export default function PromoCard({ item, onEdit, onDelete, nomor_stand }) {
   const icon = TIPE_ICON[item.tipe] || "🏷️";
   const bg = TIPE_BG[item.tipe] || "#f0f0f0";
 
@@ -31,7 +31,7 @@ export default function PromoCard({ item, onEdit, onDelete }) {
         <h4 className="pd-card-name">{item.nama}</h4>
         <div className="pd-card-value">{item.nilai}</div>
         <div className="pd-card-date">
-          📅 {item.mulai} – {item.akhir} · Stand A-12
+          📅 {item.mulai} – {item.akhir}{nomor_stand ? ` · Stand ${nomor_stand}` : ''}
         </div>
 
         <div className="pd-card-footer">

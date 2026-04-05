@@ -16,11 +16,14 @@ import EditKasModal from "../components/modals/EditKasModal";
 import ConfirmDeleteKasModal from "../components/modals/ConfirmDeleteKasModal";
 import Toast from "../components/BukuKas/Toast";
 import "../assets/styles/kas.css";
-import api from "../services/api";
+import api, { getUser } from "../services/api";
 
 const fmt = (angka) => new Intl.NumberFormat("id-ID").format(angka);
 
 export default function BukuKas() {
+  const user      = getUser();
+  const namaUsaha = user?.nama_usaha  || "Kios Saya";
+  const stand     = user?.nomor_stand || "—";
   // FIX: Pisahkan state ringkasan dan transaksi sesuai respons backend
   // Backend: { status, data: { ringkasan: {...}, transaksi: [...] } }
   const [data, setData]             = useState([]);        // array transaksi
@@ -145,7 +148,7 @@ export default function BukuKas() {
             <Wallet size={14} />
             KEUANGAN KIOS</div>
           <div className="pg-title">Buku <em>Kas</em></div>
-          <div className="pg-sub">Catat pemasukan &amp; pengeluaran · Stand A-12 · Sate Blengong Bu Yati</div>
+          <div className="pg-sub">Catat pemasukan &amp; pengeluaran · Stand {stand} · {namaUsaha}</div>
         </div>
 
         <div className="bk-topbar-right">
@@ -208,7 +211,7 @@ export default function BukuKas() {
         <div className="bk-card-head">
           <div className="bk-card-head-left">
             <h3><FileText size={16} />Daftar Transaksi Kas</h3>
-            <p>Sate Blengong Bu Yati · Stand A-12</p>
+            <p>{namaUsaha} · Stand {stand}</p>
           </div>
           <button className="bk-btn-export" onClick={handleExport}>
             <Download size={14} />

@@ -5,6 +5,9 @@ export default function TambahBarangModal({
   handleChange,
   handleSubmit,
 }) {
+  const user      = getUser();
+  const stand     = user?.nomor_stand || \"—\";
+  const namaUsaha = user?.nama_usaha  || \"Kios Saya\";
   if (!show) return null;
 
   return (
@@ -14,14 +17,14 @@ export default function TambahBarangModal({
         <div className="ms-modal-hd">
           <div className="ms-modal-hd-left">
             <h3>Tambah Barang</h3>
-            <span className="ms-stand-tag">Stand A-12</span>
+            {stand !== "—" && <span className="ms-stand-tag">Stand {stand}</span>}
           </div>
           <button className="ms-modal-close" onClick={onClose}>✕</button>
         </div>
 
         {/* INFO */}
         <div className="ms-modal-info">
-          Barang ini akan ditambahkan ke stok <strong>Sate Blengong Bu Yati</strong>
+          Barang ini akan ditambahkan ke stok <strong>{namaUsaha}</strong>
         </div>
 
         {/* FORM */}
@@ -30,7 +33,7 @@ export default function TambahBarangModal({
             <label>Nama Barang</label>
             <input
               name="nama"
-              placeholder="cth: Sate Blengong Spesial"
+              placeholder="cth: nama produk kamu"
               value={form.nama}
               onChange={handleChange}
             />

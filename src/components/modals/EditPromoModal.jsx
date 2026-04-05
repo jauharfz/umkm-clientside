@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import "../../assets/styles/promo.css";
 
 export default function EditPromoModal({ show, item, onClose, onSave, onToast }) {
+  const user  = getUser();
+  const stand = user?.nomor_stand || \"—\";
   const [form, setForm] = useState({
     nama: "", tipe: "Persentase", nilai: "", mulai: "", akhir: "", status: "aktif", file_poster: null,
   });
@@ -54,7 +56,7 @@ export default function EditPromoModal({ show, item, onClose, onSave, onToast })
             <h3 className="pd-modal-title">Edit Promo</h3>
           </div>
           <div className="pd-modal-hd-right">
-            <span className="pd-kios-tag">Stand A-12</span>
+            {stand !== "—" && <span className="pd-kios-tag">Stand {stand}</span>}
             <button className="pd-modal-x" onClick={onClose}>✕</button>
           </div>
         </div>

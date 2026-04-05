@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
+import { getUser } from "../../services/api";
 
 export default function EditKasModal({ show, item, onClose, onSave }) {
+  const user  = getUser();
+  const stand = user?.nomor_stand || "—";
   const [form, setForm] = useState({
     ket: "", jenis: "masuk", nominal: "", tgl: "", kategori: "Penjualan",
   });
@@ -32,7 +35,7 @@ export default function EditKasModal({ show, item, onClose, onSave }) {
         <div className="bk-modal-hd">
           <div className="bk-modal-hd-left">
             <h3>Edit Transaksi Kas</h3>
-            <span className="bk-stand-tag">Stand A-12</span>
+            {stand !== "—" && <span className="bk-stand-tag">Stand {stand}</span>}
           </div>
           <button className="bk-modal-close" onClick={onClose}>✕</button>
         </div>

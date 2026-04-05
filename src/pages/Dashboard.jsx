@@ -7,13 +7,12 @@ import api, { getUser } from "../services/api";
 // ── COUNTDOWN ───────────────────────────────────────────
 function Countdown() {
     const [state, setState] = useState("loading"); // "loading"|"countdown"|"ongoing"|"none"
-    const [time,  setTime]  = useState({ d: "00", j: "00", m: "00" });
+    const [time,  setTime]  = useState({ d: "00", j: "00", m: "00", s: "00" });
 
     useEffect(() => {
-        // FIX: fetch dari /api/public/event — proxy UMKM ke Gate.
         // Endpoint publik, tidak butuh token.
         const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
-        let clearTimer;
+        let timerId;
 
         fetch(`${API_URL}/public/event`)
             .then(r => r.json())
@@ -30,22 +29,24 @@ function Countdown() {
                 if (target <= new Date()) { setState("ongoing"); return; }
 
                 setState("countdown");
+
                 function tick() {
                     const diff = target - new Date();
-                    if (diff <= 0) { setState("ongoing"); return; }
+                    if (diff <= 0) { setState("ongoing"); clearInterval(timerId); return; }
                     setTime({
                         d: String(Math.floor(diff / 86400000)).padStart(2, "0"),
                         j: String(Math.floor((diff % 86400000) / 3600000)).padStart(2, "0"),
                         m: String(Math.floor((diff % 3600000) / 60000)).padStart(2, "0"),
+                        s: String(Math.floor((diff % 60000) / 1000)).padStart(2, "0"),
                     });
                 }
                 tick();
-                const id = setInterval(tick, 60000);
-                clearTimer = () => clearInterval(id);
+                // Update setiap 1 detik agar hitungan detik berjalan
+                timerId = setInterval(tick, 1000);
             })
             .catch(() => setState("none"));
 
-        return () => clearTimer?.();
+        return () => clearInterval(timerId);
     }, []);
 
     if (state === "loading") return null;
@@ -69,7 +70,7 @@ function Countdown() {
     // state === "countdown"
     return (
         <div className="cd-boxes">
-            {[["d", "HARI"], ["j", "JAM"], ["m", "MENIT"]].map(([k, u]) => (
+            {[["d", "HARI"], ["j", "JAM"], ["m", "MENIT"], ["s", "DETIK"]].map(([k, u]) => (
                 <div className="cd-box" key={k}>
                     <div className="cd-num">{time[k]}</div>
                     <div className="cd-unit">{u}</div>

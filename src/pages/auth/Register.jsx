@@ -256,7 +256,7 @@ export default function Register() {
                                 <div className="field">
                                     <label className="field-label">Nama Usaha <span>*</span></label>
                                     <input type="text" name="namaUsaha" value={formData.namaUsaha} onChange={handleChange}
-                                           placeholder="Contoh: Sate Blengong Bu Yati" className={`reg-input${errors.namaUsaha ? " err" : ""}`} />
+                                           placeholder="Contoh: Warung Makan Bu Sari" className={`reg-input${errors.namaUsaha ? " err" : ""}`} />
                                     {errors.namaUsaha && <div className="err-msg">⚠ {errors.namaUsaha}</div>}
                                 </div>
 

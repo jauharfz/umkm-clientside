@@ -5,7 +5,7 @@ import EditPromoModal from "../components/modals/EditPromoModal";
 import ConfirmDeletePromoModal from "../components/modals/ConfirmDeletePromoModal";
 import PromoToast from "../components/PromoDiskon/PromoToast";
 import "../assets/styles/promo.css";
-import api from "../services/api";
+import api, { getUser } from "../services/api";
 
 export default function PromoDiskon() {
   const [promos, setPromos]     = useState([]);
@@ -14,6 +14,10 @@ export default function PromoDiskon() {
   const [editItem, setEditItem]   = useState(null);
   const [deleteItem, setDeleteItem] = useState(null);
   const [toasts, setToasts]       = useState([]);
+
+  // Ambil nomor stand dari localStorage untuk PromoCard
+  const user       = getUser();
+  const nomor_stand = user?.nomor_stand || "";
 
   const addToast = (message, type = "success") => {
     const id = Date.now();
@@ -141,6 +145,7 @@ export default function PromoDiskon() {
               item={item}
               onEdit={setEditItem}
               onDelete={setDeleteItem}
+              nomor_stand={nomor_stand}
             />
           ))}
         </div>
