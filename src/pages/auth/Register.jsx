@@ -3,33 +3,33 @@ import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 
 const STEPS = [
-  { id: 1, label: "Data Usaha",  icon: "🏪" },
-  { id: 2, label: "Dokumen",     icon: "📄" },
-  { id: 3, label: "S & K",       icon: "📋" },
-  { id: 4, label: "Pilih Kios",  icon: "🗺️" },
-  { id: 5, label: "Konfirmasi",  icon: "✅" },
+    { id: 1, label: "Data Usaha",  icon: "🏪" },
+    { id: 2, label: "Dokumen",     icon: "📄" },
+    { id: 3, label: "S & K",       icon: "📋" },
+    { id: 4, label: "Pilih Kios",  icon: "🗺️" },
+    { id: 5, label: "Konfirmasi",  icon: "✅" },
 ];
 
 const KIOS_DATA = [
-  { id: "A-01", zona: "A", harga: 500000, status: "available", ukuran: "3×3m" },
-  { id: "A-02", zona: "A", harga: 500000, status: "full",      ukuran: "3×3m" },
-  { id: "A-03", zona: "A", harga: 500000, status: "available", ukuran: "3×3m" },
-  { id: "A-04", zona: "A", harga: 500000, status: "full",      ukuran: "3×3m" },
-  { id: "A-05", zona: "A", harga: 500000, status: "available", ukuran: "3×3m" },
-  { id: "A-06", zona: "A", harga: 500000, status: "available", ukuran: "3×3m" },
-  { id: "B-01", zona: "B", harga: 600000, status: "available", ukuran: "4×3m" },
-  { id: "B-02", zona: "B", harga: 600000, status: "full",      ukuran: "4×3m" },
-  { id: "B-03", zona: "B", harga: 600000, status: "available", ukuran: "4×3m" },
-  { id: "B-04", zona: "B", harga: 600000, status: "available", ukuran: "4×3m" },
-  { id: "C-01", zona: "C", harga: 450000, status: "available", ukuran: "2×3m" },
-  { id: "C-02", zona: "C", harga: 450000, status: "full",      ukuran: "2×3m" },
-  { id: "C-03", zona: "C", harga: 450000, status: "available", ukuran: "2×3m" },
+    { id: "A-01", zona: "A", harga: 500000, status: "available", ukuran: "3×3m" },
+    { id: "A-02", zona: "A", harga: 500000, status: "full",      ukuran: "3×3m" },
+    { id: "A-03", zona: "A", harga: 500000, status: "available", ukuran: "3×3m" },
+    { id: "A-04", zona: "A", harga: 500000, status: "full",      ukuran: "3×3m" },
+    { id: "A-05", zona: "A", harga: 500000, status: "available", ukuran: "3×3m" },
+    { id: "A-06", zona: "A", harga: 500000, status: "available", ukuran: "3×3m" },
+    { id: "B-01", zona: "B", harga: 600000, status: "available", ukuran: "4×3m" },
+    { id: "B-02", zona: "B", harga: 600000, status: "full",      ukuran: "4×3m" },
+    { id: "B-03", zona: "B", harga: 600000, status: "available", ukuran: "4×3m" },
+    { id: "B-04", zona: "B", harga: 600000, status: "available", ukuran: "4×3m" },
+    { id: "C-01", zona: "C", harga: 450000, status: "available", ukuran: "2×3m" },
+    { id: "C-02", zona: "C", harga: 450000, status: "full",      ukuran: "2×3m" },
+    { id: "C-03", zona: "C", harga: 450000, status: "available", ukuran: "2×3m" },
 ];
 
 const ZONA_INFO = {
-  A: { label: "Zona Kuliner",   color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
-  B: { label: "Zona Fashion",   color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
-  C: { label: "Zona Kerajinan", color: "#0369a1", bg: "#f0f9ff", border: "#bae6fd" },
+    A: { label: "Zona Kuliner",   color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+    B: { label: "Zona Fashion",   color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
+    C: { label: "Zona Kerajinan", color: "#0369a1", bg: "#f0f9ff", border: "#bae6fd" },
 };
 
 const CSS = `
@@ -119,407 +119,409 @@ const CSS = `
 `;
 
 export default function Register() {
-  const navigate = useNavigate();
-  const [step, setStep]             = useState(1);
-  const [errors, setErrors]         = useState({});
-  const [submitting, setSubmitting] = useState(false);
-  const [apiError, setApiError]     = useState("");
-  const [formData, setFormData]     = useState({
-    // Akun (wajib untuk bisa login)
-    email: "", password: "", konfirmasiPassword: "",
-    // Data usaha
-    namaUsaha: "", alamat: "", kategori: "", deskripsi: "",
-    // Dokumen
-    ktp: null, nib: null,
-    // S&K & kios
-    setuju: false, kios: null,
-  });
+    const navigate = useNavigate();
+    const [step, setStep]             = useState(1);
+    const [errors, setErrors]         = useState({});
+    const [submitting, setSubmitting] = useState(false);
+    const [apiError, setApiError]     = useState("");
+    const [formData, setFormData]     = useState({
+        // Akun (wajib untuk bisa login)
+        email: "", password: "", konfirmasiPassword: "",
+        // Data usaha
+        namaUsaha: "", alamat: "", kategori: "", deskripsi: "",
+        // Dokumen
+        ktp: null, nib: null,
+        // S&K & kios
+        setuju: false, kios: null,
+    });
 
-  const handleChange = (e) => {
-    const { name, value, type, checked, files } = e.target;
-    setFormData({ ...formData, [name]: type === "checkbox" ? checked : type === "file" ? files[0] : value });
-    if (errors[name]) setErrors({ ...errors, [name]: "" });
-    if (apiError) setApiError("");
-  };
+    const handleChange = (e) => {
+        const { name, value, type, checked, files } = e.target;
+        setFormData({ ...formData, [name]: type === "checkbox" ? checked : type === "file" ? files[0] : value });
+        if (errors[name]) setErrors({ ...errors, [name]: "" });
+        if (apiError) setApiError("");
+    };
 
-  const validate = () => {
-    const e = {};
-    if (step === 1) {
-      if (!formData.namaUsaha.trim()) e.namaUsaha = "Nama usaha wajib diisi";
-      if (!formData.alamat.trim())    e.alamat    = "Alamat wajib diisi";
-      if (!formData.kategori)         e.kategori  = "Pilih kategori usaha";
-      if (!formData.email.trim())     e.email     = "Email wajib diisi";
-      if (!formData.password)         e.password  = "Password wajib diisi";
-      if (formData.password && formData.password.length < 6)
-                                      e.password  = "Password minimal 6 karakter";
-      if (formData.password !== formData.konfirmasiPassword)
-                                      e.konfirmasiPassword = "Konfirmasi password tidak cocok";
-    }
-    if (step === 2) {
-      if (!formData.ktp) e.ktp = "KTP wajib diupload";
-      if (!formData.nib) e.nib = "NIB wajib diupload";
-    }
-    if (step === 3 && !formData.setuju) e.setuju = "Anda harus menyetujui syarat & ketentuan";
-    if (step === 4 && !formData.kios)   e.kios   = "Silakan pilih kios terlebih dahulu";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
+    const validate = () => {
+        const e = {};
+        if (step === 1) {
+            if (!formData.namaUsaha.trim()) e.namaUsaha = "Nama usaha wajib diisi";
+            if (!formData.alamat.trim())    e.alamat    = "Alamat wajib diisi";
+            if (!formData.kategori)         e.kategori  = "Pilih kategori usaha";
+            if (!formData.email.trim())     e.email     = "Email wajib diisi";
+            if (!formData.password)         e.password  = "Password wajib diisi";
+            if (formData.password && formData.password.length < 6)
+                e.password  = "Password minimal 6 karakter";
+            if (formData.password !== formData.konfirmasiPassword)
+                e.konfirmasiPassword = "Konfirmasi password tidak cocok";
+        }
+        if (step === 2) {
+            if (!formData.ktp) e.ktp = "KTP wajib diupload";
+            if (!formData.nib) e.nib = "NIB wajib diupload";
+        }
+        if (step === 3 && !formData.setuju) e.setuju = "Anda harus menyetujui syarat & ketentuan";
+        if (step === 4 && !formData.kios)   e.kios   = "Silakan pilih kios terlebih dahulu";
+        setErrors(e);
+        return Object.keys(e).length === 0;
+    };
 
-  const nextStep = () => { if (validate()) setStep((p) => p + 1); };
-  const prevStep = () => setStep((p) => p - 1);
+    const nextStep = () => { if (validate()) setStep((p) => p + 1); };
+    const prevStep = () => setStep((p) => p - 1);
 
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    setApiError("");
-    try {
-      // Buat FormData untuk multipart/form-data (ada file upload)
-      const fd = new FormData();
-      fd.append("nama_usaha",   formData.namaUsaha);
-      fd.append("alamat",       formData.alamat);
-      fd.append("kategori",     formData.kategori);
-      fd.append("deskripsi",    formData.deskripsi || "");
-      fd.append("email",        formData.email);
-      fd.append("password",     formData.password);
-      fd.append("kios_id",      formData.kios.id);
-      fd.append("file_ktp",     formData.ktp);
-      fd.append("file_nib",     formData.nib);
-      fd.append("nama_pemilik", formData.namaUsaha);
-      fd.append("setuju",       String(formData.setuju));
+    const handleSubmit = async () => {
+        setSubmitting(true);
+        setApiError("");
+        try {
+            // Buat FormData untuk multipart/form-data (ada file upload)
+            const fd = new FormData();
+            fd.append("nama_usaha",   formData.namaUsaha);
+            fd.append("alamat",       formData.alamat);
+            fd.append("kategori",     formData.kategori);
+            fd.append("deskripsi",    formData.deskripsi || "");
+            fd.append("email",        formData.email);
+            fd.append("password",     formData.password);
+            fd.append("kios_id",      formData.kios.id);
+            fd.append("file_ktp",     formData.ktp);
+            fd.append("file_nib",     formData.nib);
+            fd.append("nama_pemilik", formData.namaUsaha);
+            fd.append("setuju",       String(formData.setuju));
 
-      await api.postForm("/auth/register", fd);
-      navigate("/status");
-    } catch (err) {
-      setApiError(err.message || "Pendaftaran gagal. Silakan coba lagi.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+            await api.postForm("/auth/register", fd);
+            // FIX: simpan email ke localStorage agar Status.jsx bisa query /auth/status?email=...
+            localStorage.setItem("reg_email", formData.email);
+            navigate("/status");
+        } catch (err) {
+            setApiError(err.message || "Pendaftaran gagal. Silakan coba lagi.");
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
-  const zonas = [...new Set(KIOS_DATA.map((k) => k.zona))];
+    const zonas = [...new Set(KIOS_DATA.map((k) => k.zona))];
 
-  return (
-    <>
-      <style>{CSS}</style>
-      <div className="reg-root">
-        <div className="reg-wrapper">
+    return (
+        <>
+            <style>{CSS}</style>
+            <div className="reg-root">
+                <div className="reg-wrapper">
 
-          {/* Brand */}
-          <div className="reg-brand">
-            <div className="reg-brand-mark">🎪</div>
-            <div>
-              <div className="reg-brand-name">Peken Banyumas 2026</div>
-              <div className="reg-brand-sub">Pendaftaran UMKM · 22–24 Maret 2026</div>
-            </div>
-          </div>
+                    {/* Brand */}
+                    <div className="reg-brand">
+                        <div className="reg-brand-mark">🎪</div>
+                        <div>
+                            <div className="reg-brand-name">Peken Banyumas 2026</div>
+                            <div className="reg-brand-sub">Pendaftaran UMKM · 22–24 Maret 2026</div>
+                        </div>
+                    </div>
 
-          {/* Stepper */}
-          <div className="stepper">
-            {STEPS.map((s) => (
-              <div key={s.id} className={`step-item ${step > s.id ? "done" : ""} ${step === s.id ? "active" : ""}`}>
-                <div className="step-circle">{step > s.id ? "✓" : s.id}</div>
-                <div className="step-label">{s.label}</div>
-              </div>
-            ))}
-          </div>
+                    {/* Stepper */}
+                    <div className="stepper">
+                        {STEPS.map((s) => (
+                            <div key={s.id} className={`step-item ${step > s.id ? "done" : ""} ${step === s.id ? "active" : ""}`}>
+                                <div className="step-circle">{step > s.id ? "✓" : s.id}</div>
+                                <div className="step-label">{s.label}</div>
+                            </div>
+                        ))}
+                    </div>
 
-          {/* Progress */}
-          <div className="progress-bar-wrap">
-            <div className="progress-bar-fill" style={{ width: `${((step - 1) / (STEPS.length - 1)) * 100}%` }} />
-          </div>
+                    {/* Progress */}
+                    <div className="progress-bar-wrap">
+                        <div className="progress-bar-fill" style={{ width: `${((step - 1) / (STEPS.length - 1)) * 100}%` }} />
+                    </div>
 
-          {/* Card */}
-          <div className="reg-card" key={step}>
+                    {/* Card */}
+                    <div className="reg-card" key={step}>
 
-            {/* API Error */}
-            {apiError && <div className="api-error">⚠ {apiError}</div>}
+                        {/* API Error */}
+                        {apiError && <div className="api-error">⚠ {apiError}</div>}
 
-            {/* STEP 1 */}
-            {step === 1 && (
-              <>
-                <div className="step-chip">🏪 Langkah 1 dari 5</div>
-                <h2 className="step-title">Data Usaha & Akun</h2>
-                <p className="step-desc">Isi data usaha dan buat akun untuk login ke dashboard</p>
+                        {/* STEP 1 */}
+                        {step === 1 && (
+                            <>
+                                <div className="step-chip">🏪 Langkah 1 dari 5</div>
+                                <h2 className="step-title">Data Usaha & Akun</h2>
+                                <p className="step-desc">Isi data usaha dan buat akun untuk login ke dashboard</p>
 
-                <div className="field">
-                  <label className="field-label">Nama Usaha <span>*</span></label>
-                  <input type="text" name="namaUsaha" value={formData.namaUsaha} onChange={handleChange}
-                    placeholder="Contoh: Sate Blengong Bu Yati" className={`reg-input${errors.namaUsaha ? " err" : ""}`} />
-                  {errors.namaUsaha && <div className="err-msg">⚠ {errors.namaUsaha}</div>}
-                </div>
+                                <div className="field">
+                                    <label className="field-label">Nama Usaha <span>*</span></label>
+                                    <input type="text" name="namaUsaha" value={formData.namaUsaha} onChange={handleChange}
+                                           placeholder="Contoh: Sate Blengong Bu Yati" className={`reg-input${errors.namaUsaha ? " err" : ""}`} />
+                                    {errors.namaUsaha && <div className="err-msg">⚠ {errors.namaUsaha}</div>}
+                                </div>
 
-                <div className="field">
-                  <label className="field-label">Alamat Usaha <span>*</span></label>
-                  <input type="text" name="alamat" value={formData.alamat} onChange={handleChange}
-                    placeholder="Jl. Contoh No.1, Banyumas" className={`reg-input${errors.alamat ? " err" : ""}`} />
-                  {errors.alamat && <div className="err-msg">⚠ {errors.alamat}</div>}
-                </div>
+                                <div className="field">
+                                    <label className="field-label">Alamat Usaha <span>*</span></label>
+                                    <input type="text" name="alamat" value={formData.alamat} onChange={handleChange}
+                                           placeholder="Jl. Contoh No.1, Banyumas" className={`reg-input${errors.alamat ? " err" : ""}`} />
+                                    {errors.alamat && <div className="err-msg">⚠ {errors.alamat}</div>}
+                                </div>
 
-                <div className="field">
-                  <label className="field-label">Kategori Usaha <span>*</span></label>
-                  <select name="kategori" value={formData.kategori} onChange={handleChange}
-                    className={`reg-select${errors.kategori ? " err" : ""}`}>
-                    <option value="">-- Pilih Kategori --</option>
-                    <option value="Kuliner">🍱 Kuliner</option>
-                    <option value="Fashion">👗 Fashion</option>
-                    <option value="Kerajinan">🎨 Kerajinan</option>
-                    <option value="Lainnya">✨ Lainnya</option>
-                  </select>
-                  {errors.kategori && <div className="err-msg">⚠ {errors.kategori}</div>}
-                </div>
+                                <div className="field">
+                                    <label className="field-label">Kategori Usaha <span>*</span></label>
+                                    <select name="kategori" value={formData.kategori} onChange={handleChange}
+                                            className={`reg-select${errors.kategori ? " err" : ""}`}>
+                                        <option value="">-- Pilih Kategori --</option>
+                                        <option value="Kuliner">🍱 Kuliner</option>
+                                        <option value="Fashion">👗 Fashion</option>
+                                        <option value="Kerajinan">🎨 Kerajinan</option>
+                                        <option value="Lainnya">✨ Lainnya</option>
+                                    </select>
+                                    {errors.kategori && <div className="err-msg">⚠ {errors.kategori}</div>}
+                                </div>
 
-                <div className="field">
-                  <label className="field-label">Deskripsi Usaha</label>
-                  <textarea name="deskripsi" value={formData.deskripsi} onChange={handleChange}
-                    placeholder="Ceritakan produk atau layanan yang kamu tawarkan..." className="reg-textarea" />
-                </div>
+                                <div className="field">
+                                    <label className="field-label">Deskripsi Usaha</label>
+                                    <textarea name="deskripsi" value={formData.deskripsi} onChange={handleChange}
+                                              placeholder="Ceritakan produk atau layanan yang kamu tawarkan..." className="reg-textarea" />
+                                </div>
 
-                {/* Divider akun */}
-                <div style={{ borderTop: "1.5px solid #f0f0f0", margin: "8px 0 20px", paddingTop: 20 }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 16 }}>🔑 Data Akun (untuk login)</p>
-                </div>
+                                {/* Divider akun */}
+                                <div style={{ borderTop: "1.5px solid #f0f0f0", margin: "8px 0 20px", paddingTop: 20 }}>
+                                    <p style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 16 }}>🔑 Data Akun (untuk login)</p>
+                                </div>
 
-                <div className="field">
-                  <label className="field-label">Email <span>*</span></label>
-                  <input type="email" name="email" value={formData.email} onChange={handleChange}
-                    placeholder="email@contoh.com" className={`reg-input${errors.email ? " err" : ""}`} />
-                  {errors.email && <div className="err-msg">⚠ {errors.email}</div>}
-                </div>
+                                <div className="field">
+                                    <label className="field-label">Email <span>*</span></label>
+                                    <input type="email" name="email" value={formData.email} onChange={handleChange}
+                                           placeholder="email@contoh.com" className={`reg-input${errors.email ? " err" : ""}`} />
+                                    {errors.email && <div className="err-msg">⚠ {errors.email}</div>}
+                                </div>
 
-                <div className="field">
-                  <label className="field-label">Password <span>*</span></label>
-                  <input type="password" name="password" value={formData.password} onChange={handleChange}
-                    placeholder="Minimal 6 karakter" className={`reg-input${errors.password ? " err" : ""}`} />
-                  {errors.password && <div className="err-msg">⚠ {errors.password}</div>}
-                </div>
+                                <div className="field">
+                                    <label className="field-label">Password <span>*</span></label>
+                                    <input type="password" name="password" value={formData.password} onChange={handleChange}
+                                           placeholder="Minimal 6 karakter" className={`reg-input${errors.password ? " err" : ""}`} />
+                                    {errors.password && <div className="err-msg">⚠ {errors.password}</div>}
+                                </div>
 
-                <div className="field">
-                  <label className="field-label">Konfirmasi Password <span>*</span></label>
-                  <input type="password" name="konfirmasiPassword" value={formData.konfirmasiPassword} onChange={handleChange}
-                    placeholder="Ulangi password" className={`reg-input${errors.konfirmasiPassword ? " err" : ""}`} />
-                  {errors.konfirmasiPassword && <div className="err-msg">⚠ {errors.konfirmasiPassword}</div>}
-                </div>
-              </>
-            )}
+                                <div className="field">
+                                    <label className="field-label">Konfirmasi Password <span>*</span></label>
+                                    <input type="password" name="konfirmasiPassword" value={formData.konfirmasiPassword} onChange={handleChange}
+                                           placeholder="Ulangi password" className={`reg-input${errors.konfirmasiPassword ? " err" : ""}`} />
+                                    {errors.konfirmasiPassword && <div className="err-msg">⚠ {errors.konfirmasiPassword}</div>}
+                                </div>
+                            </>
+                        )}
 
-            {/* STEP 2 */}
-            {step === 2 && (
-              <>
-                <div className="step-chip">📄 Langkah 2 dari 5</div>
-                <h2 className="step-title">Upload Dokumen</h2>
-                <p className="step-desc">Dokumen diperlukan untuk verifikasi identitas dan legalitas usaha</p>
+                        {/* STEP 2 */}
+                        {step === 2 && (
+                            <>
+                                <div className="step-chip">📄 Langkah 2 dari 5</div>
+                                <h2 className="step-title">Upload Dokumen</h2>
+                                <p className="step-desc">Dokumen diperlukan untuk verifikasi identitas dan legalitas usaha</p>
 
-                {[
-                  { key: "ktp", label: "KTP Pemilik", desc: "Kartu Tanda Penduduk", emoji: "🪪" },
-                  { key: "nib", label: "NIB",         desc: "Nomor Induk Berusaha",  emoji: "📑" },
-                ].map(({ key, label, desc, emoji }) => (
-                  <div className="field" key={key}>
-                    <label className="field-label">{label} <span>*</span></label>
-                    <label className={`upload-zone${errors[key] ? " err" : ""}${formData[key] ? " uploaded" : ""}`}>
-                      <input type="file" name={key} onChange={handleChange} style={{ display: "none" }} accept=".jpg,.jpeg,.png,.pdf" />
-                      {formData[key] ? (
-                        <>
-                          <div className="upload-icon">✅</div>
-                          <div className="upload-title" style={{ color: "#166534" }}>{formData[key].name}</div>
-                          <div className="upload-sub">Klik untuk ganti file</div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="upload-icon">{emoji}</div>
-                          <div className="upload-title">Upload {label}</div>
-                          <div className="upload-sub">{desc} · JPG, PNG, atau PDF · Maks. 5MB</div>
-                          <span className="upload-btn">📎 Pilih File</span>
-                        </>
-                      )}
-                    </label>
-                    {errors[key] && <div className="err-msg">⚠ {errors[key]}</div>}
-                  </div>
-                ))}
-              </>
-            )}
+                                {[
+                                    { key: "ktp", label: "KTP Pemilik", desc: "Kartu Tanda Penduduk", emoji: "🪪" },
+                                    { key: "nib", label: "NIB",         desc: "Nomor Induk Berusaha",  emoji: "📑" },
+                                ].map(({ key, label, desc, emoji }) => (
+                                    <div className="field" key={key}>
+                                        <label className="field-label">{label} <span>*</span></label>
+                                        <label className={`upload-zone${errors[key] ? " err" : ""}${formData[key] ? " uploaded" : ""}`}>
+                                            <input type="file" name={key} onChange={handleChange} style={{ display: "none" }} accept=".jpg,.jpeg,.png,.pdf" />
+                                            {formData[key] ? (
+                                                <>
+                                                    <div className="upload-icon">✅</div>
+                                                    <div className="upload-title" style={{ color: "#166534" }}>{formData[key].name}</div>
+                                                    <div className="upload-sub">Klik untuk ganti file</div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className="upload-icon">{emoji}</div>
+                                                    <div className="upload-title">Upload {label}</div>
+                                                    <div className="upload-sub">{desc} · JPG, PNG, atau PDF · Maks. 5MB</div>
+                                                    <span className="upload-btn">📎 Pilih File</span>
+                                                </>
+                                            )}
+                                        </label>
+                                        {errors[key] && <div className="err-msg">⚠ {errors[key]}</div>}
+                                    </div>
+                                ))}
+                            </>
+                        )}
 
-            {/* STEP 3 */}
-            {step === 3 && (
-              <>
-                <div className="step-chip">📋 Langkah 3 dari 5</div>
-                <h2 className="step-title">Syarat & Ketentuan</h2>
-                <p className="step-desc">Baca dan setujui ketentuan sebelum melanjutkan pendaftaran</p>
+                        {/* STEP 3 */}
+                        {step === 3 && (
+                            <>
+                                <div className="step-chip">📋 Langkah 3 dari 5</div>
+                                <h2 className="step-title">Syarat & Ketentuan</h2>
+                                <p className="step-desc">Baca dan setujui ketentuan sebelum melanjutkan pendaftaran</p>
 
-                <div className="terms-box">
-                  <p style={{ marginBottom: 12, fontWeight: 600, color: "#1a2e1f" }}>Ketentuan Pendaftaran UMKM — Peken Banyumas 2026</p>
-                  <ul>
-                    <li>Data usaha yang diberikan adalah benar, akurat, dan dapat dipertanggungjawabkan.</li>
-                    <li>Dokumen yang diunggah (KTP & NIB) akan diverifikasi oleh tim admin Peken Banyumas.</li>
-                    <li>Harga sewa kios dapat berubah sewaktu-waktu sesuai kebijakan pengelola.</li>
-                    <li>Pembayaran sewa kios dilakukan melalui admin resmi dan tidak melalui pihak ketiga.</li>
-                    <li>Peserta wajib menjaga kebersihan dan ketertiban area kios selama acara berlangsung.</li>
-                    <li>Peserta dilarang menjual produk yang tidak sesuai dengan kategori yang didaftarkan.</li>
-                    <li>Segala pelanggaran dapat mengakibatkan pembatalan pendaftaran tanpa pengembalian dana.</li>
-                    <li>Pengelola berhak melakukan inspeksi kios sewaktu-waktu selama periode acara.</li>
-                  </ul>
-                </div>
+                                <div className="terms-box">
+                                    <p style={{ marginBottom: 12, fontWeight: 600, color: "#1a2e1f" }}>Ketentuan Pendaftaran UMKM — Peken Banyumas 2026</p>
+                                    <ul>
+                                        <li>Data usaha yang diberikan adalah benar, akurat, dan dapat dipertanggungjawabkan.</li>
+                                        <li>Dokumen yang diunggah (KTP & NIB) akan diverifikasi oleh tim admin Peken Banyumas.</li>
+                                        <li>Harga sewa kios dapat berubah sewaktu-waktu sesuai kebijakan pengelola.</li>
+                                        <li>Pembayaran sewa kios dilakukan melalui admin resmi dan tidak melalui pihak ketiga.</li>
+                                        <li>Peserta wajib menjaga kebersihan dan ketertiban area kios selama acara berlangsung.</li>
+                                        <li>Peserta dilarang menjual produk yang tidak sesuai dengan kategori yang didaftarkan.</li>
+                                        <li>Segala pelanggaran dapat mengakibatkan pembatalan pendaftaran tanpa pengembalian dana.</li>
+                                        <li>Pengelola berhak melakukan inspeksi kios sewaktu-waktu selama periode acara.</li>
+                                    </ul>
+                                </div>
 
-                <label
-                  className={`checkbox-row${formData.setuju ? " checked" : ""}${errors.setuju ? " err" : ""}`}
-                  onClick={() => {
-                    setFormData({ ...formData, setuju: !formData.setuju });
-                    if (errors.setuju) setErrors({ ...errors, setuju: "" });
-                  }}
-                >
-                  <input type="checkbox" checked={formData.setuju} onChange={() => {}}
-                    style={{ width: 18, height: 18, accentColor: "#2f855a", flexShrink: 0, marginTop: 1, cursor: "pointer" }} />
-                  <span style={{ fontSize: 13.5, color: "#374151", fontWeight: 500, lineHeight: 1.5, cursor: "pointer" }}>
+                                <label
+                                    className={`checkbox-row${formData.setuju ? " checked" : ""}${errors.setuju ? " err" : ""}`}
+                                    onClick={() => {
+                                        setFormData({ ...formData, setuju: !formData.setuju });
+                                        if (errors.setuju) setErrors({ ...errors, setuju: "" });
+                                    }}
+                                >
+                                    <input type="checkbox" checked={formData.setuju} onChange={() => {}}
+                                           style={{ width: 18, height: 18, accentColor: "#2f855a", flexShrink: 0, marginTop: 1, cursor: "pointer" }} />
+                                    <span style={{ fontSize: 13.5, color: "#374151", fontWeight: 500, lineHeight: 1.5, cursor: "pointer" }}>
                     Saya telah membaca dan <strong>menyetujui seluruh syarat & ketentuan</strong> yang berlaku
                   </span>
-                </label>
-                {errors.setuju && <div className="err-msg" style={{ marginTop: 8 }}>⚠ {errors.setuju}</div>}
-              </>
-            )}
+                                </label>
+                                {errors.setuju && <div className="err-msg" style={{ marginTop: 8 }}>⚠ {errors.setuju}</div>}
+                            </>
+                        )}
 
-            {/* STEP 4 */}
-            {step === 4 && (
-              <>
-                <div className="step-chip">🗺️ Langkah 4 dari 5</div>
-                <h2 className="step-title">Pilih Kios</h2>
-                <p className="step-desc">Pilih lokasi kios yang tersedia. Harga ditampilkan per bulan.</p>
+                        {/* STEP 4 */}
+                        {step === 4 && (
+                            <>
+                                <div className="step-chip">🗺️ Langkah 4 dari 5</div>
+                                <h2 className="step-title">Pilih Kios</h2>
+                                <p className="step-desc">Pilih lokasi kios yang tersedia. Harga ditampilkan per bulan.</p>
 
-                <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
-                  {[
-                    { label: "Tersedia", border: "#2f855a", bg: "#f0fdf4" },
-                    { label: "Terisi",   border: "#e5e7eb", bg: "#f9fafb", opacity: 0.5 },
-                    { label: "Dipilih",  border: "#2f855a", bg: "#f0fdf4", shadow: "0 0 0 3px rgba(47,133,90,.2)" },
-                  ].map(({ label, border, bg, opacity, shadow }) => (
-                    <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#4b5563" }}>
-                      <div style={{ width: 12, height: 12, borderRadius: 3, background: bg, border: `2px solid ${border}`, opacity, boxShadow: shadow }} />
-                      {label}
-                    </div>
-                  ))}
-                </div>
+                                <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
+                                    {[
+                                        { label: "Tersedia", border: "#2f855a", bg: "#f0fdf4" },
+                                        { label: "Terisi",   border: "#e5e7eb", bg: "#f9fafb", opacity: 0.5 },
+                                        { label: "Dipilih",  border: "#2f855a", bg: "#f0fdf4", shadow: "0 0 0 3px rgba(47,133,90,.2)" },
+                                    ].map(({ label, border, bg, opacity, shadow }) => (
+                                        <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#4b5563" }}>
+                                            <div style={{ width: 12, height: 12, borderRadius: 3, background: bg, border: `2px solid ${border}`, opacity, boxShadow: shadow }} />
+                                            {label}
+                                        </div>
+                                    ))}
+                                </div>
 
-                {zonas.map((zona) => {
-                  const info  = ZONA_INFO[zona];
-                  const kiosZ = KIOS_DATA.filter((k) => k.zona === zona);
-                  return (
-                    <div className="zona-section" key={zona}>
+                                {zonas.map((zona) => {
+                                    const info  = ZONA_INFO[zona];
+                                    const kiosZ = KIOS_DATA.filter((k) => k.zona === zona);
+                                    return (
+                                        <div className="zona-section" key={zona}>
                       <span className="zona-badge" style={{ background: info.bg, color: info.color, border: `1px solid ${info.border}` }}>
                         <span className="zona-dot" style={{ background: info.color }} />
                         Zona {zona} — {info.label}
                       </span>
-                      <div className="kios-grid">
-                        {kiosZ.map((kios) => {
-                          const isFull = kios.status === "full";
-                          const isSel  = formData.kios?.id === kios.id;
-                          return (
-                            <div key={kios.id}
-                              className={`kios-card${isFull ? " kios-full" : ""}${isSel ? " kios-selected" : ""}`}
-                              onClick={() => {
-                                if (isFull) return;
-                                setFormData({ ...formData, kios });
-                                if (errors.kios) setErrors({ ...errors, kios: "" });
-                              }}>
-                              {isSel && <div className="kios-check">✓</div>}
-                              <div className="kios-id">{kios.id}</div>
-                              <div className="kios-size">{kios.ukuran}</div>
-                              <div className="kios-price">Rp {(kios.harga / 1000).toFixed(0)}rb</div>
-                              <div className={`kios-status ${kios.status}`}>{isFull ? "Terisi" : "Tersedia"}</div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
+                                            <div className="kios-grid">
+                                                {kiosZ.map((kios) => {
+                                                    const isFull = kios.status === "full";
+                                                    const isSel  = formData.kios?.id === kios.id;
+                                                    return (
+                                                        <div key={kios.id}
+                                                             className={`kios-card${isFull ? " kios-full" : ""}${isSel ? " kios-selected" : ""}`}
+                                                             onClick={() => {
+                                                                 if (isFull) return;
+                                                                 setFormData({ ...formData, kios });
+                                                                 if (errors.kios) setErrors({ ...errors, kios: "" });
+                                                             }}>
+                                                            {isSel && <div className="kios-check">✓</div>}
+                                                            <div className="kios-id">{kios.id}</div>
+                                                            <div className="kios-size">{kios.ukuran}</div>
+                                                            <div className="kios-price">Rp {(kios.harga / 1000).toFixed(0)}rb</div>
+                                                            <div className={`kios-status ${kios.status}`}>{isFull ? "Terisi" : "Tersedia"}</div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
 
-                {errors.kios && <div className="err-msg">⚠ {errors.kios}</div>}
-                {formData.kios && (
-                  <div className="selected-banner">
-                    <span style={{ fontSize: 24 }}>🏠</span>
-                    <div>
-                      <div style={{ fontWeight: 700, color: "#166534", fontSize: 14 }}>Kios {formData.kios.id} dipilih</div>
-                      <div style={{ fontSize: 12, color: "#4b7a5e" }}>
-                        {ZONA_INFO[formData.kios.zona]?.label} · {formData.kios.ukuran} · Rp {formData.kios.harga.toLocaleString("id-ID")}/bulan
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
+                                {errors.kios && <div className="err-msg">⚠ {errors.kios}</div>}
+                                {formData.kios && (
+                                    <div className="selected-banner">
+                                        <span style={{ fontSize: 24 }}>🏠</span>
+                                        <div>
+                                            <div style={{ fontWeight: 700, color: "#166534", fontSize: 14 }}>Kios {formData.kios.id} dipilih</div>
+                                            <div style={{ fontSize: 12, color: "#4b7a5e" }}>
+                                                {ZONA_INFO[formData.kios.zona]?.label} · {formData.kios.ukuran} · Rp {formData.kios.harga.toLocaleString("id-ID")}/bulan
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
 
-            {/* STEP 5 */}
-            {step === 5 && (
-              <>
-                <div className="step-chip">✅ Langkah 5 dari 5</div>
-                <h2 className="step-title">Konfirmasi Data</h2>
-                <p className="step-desc">Periksa kembali sebelum mengirimkan pendaftaran</p>
+                        {/* STEP 5 */}
+                        {step === 5 && (
+                            <>
+                                <div className="step-chip">✅ Langkah 5 dari 5</div>
+                                <h2 className="step-title">Konfirmasi Data</h2>
+                                <p className="step-desc">Periksa kembali sebelum mengirimkan pendaftaran</p>
 
-                {[
-                  {
-                    icon: "🏪", title: "DATA USAHA",
-                    rows: [["Nama Usaha", formData.namaUsaha], ["Alamat", formData.alamat], ["Kategori", formData.kategori], ["Deskripsi", formData.deskripsi || "—"]],
-                  },
-                  {
-                    icon: "🔑", title: "DATA AKUN",
-                    rows: [["Email", formData.email]],
-                  },
-                  {
-                    icon: "📄", title: "DOKUMEN",
-                    rows: [["KTP", formData.ktp?.name], ["NIB", formData.nib?.name]],
-                    green: true,
-                  },
-                  {
-                    icon: "🏠", title: "KIOS DIPILIH",
-                    rows: [
-                      ["ID Kios",  formData.kios?.id],
-                      ["Zona",     formData.kios ? ZONA_INFO[formData.kios.zona]?.label : "—"],
-                      ["Ukuran",   formData.kios?.ukuran],
-                      ["Harga",    formData.kios ? `Rp ${formData.kios.harga.toLocaleString("id-ID")}/bulan` : "—"],
-                    ],
-                  },
-                ].map(({ icon, title, rows, green }) => (
-                  <div className="confirm-section" key={title}>
-                    <div className="confirm-header">
-                      <span style={{ fontSize: 16 }}>{icon}</span>
-                      <span className="confirm-header-title">{title}</span>
-                    </div>
-                    <div className="confirm-body">
-                      {rows.map(([k, v]) => (
-                        <div className="confirm-row" key={k}>
-                          <span className="confirm-key">{k}</span>
-                          <span className="confirm-val" style={green ? { color: "#2f855a" } : {}}>
+                                {[
+                                    {
+                                        icon: "🏪", title: "DATA USAHA",
+                                        rows: [["Nama Usaha", formData.namaUsaha], ["Alamat", formData.alamat], ["Kategori", formData.kategori], ["Deskripsi", formData.deskripsi || "—"]],
+                                    },
+                                    {
+                                        icon: "🔑", title: "DATA AKUN",
+                                        rows: [["Email", formData.email]],
+                                    },
+                                    {
+                                        icon: "📄", title: "DOKUMEN",
+                                        rows: [["KTP", formData.ktp?.name], ["NIB", formData.nib?.name]],
+                                        green: true,
+                                    },
+                                    {
+                                        icon: "🏠", title: "KIOS DIPILIH",
+                                        rows: [
+                                            ["ID Kios",  formData.kios?.id],
+                                            ["Zona",     formData.kios ? ZONA_INFO[formData.kios.zona]?.label : "—"],
+                                            ["Ukuran",   formData.kios?.ukuran],
+                                            ["Harga",    formData.kios ? `Rp ${formData.kios.harga.toLocaleString("id-ID")}/bulan` : "—"],
+                                        ],
+                                    },
+                                ].map(({ icon, title, rows, green }) => (
+                                    <div className="confirm-section" key={title}>
+                                        <div className="confirm-header">
+                                            <span style={{ fontSize: 16 }}>{icon}</span>
+                                            <span className="confirm-header-title">{title}</span>
+                                        </div>
+                                        <div className="confirm-body">
+                                            {rows.map(([k, v]) => (
+                                                <div className="confirm-row" key={k}>
+                                                    <span className="confirm-key">{k}</span>
+                                                    <span className="confirm-val" style={green ? { color: "#2f855a" } : {}}>
                             {green ? `✓ ${v}` : v}
                           </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+
+                                <div style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 12, padding: "12px 16px", fontSize: 13, color: "#92400e", display: "flex", gap: 10 }}>
+                                    <span style={{ flexShrink: 0 }}>💡</span>
+                                    <span>Pendaftaran akan diproses oleh admin. Pantau status di halaman <strong>Status Pendaftaran</strong>.</span>
+                                </div>
+                            </>
+                        )}
+
+                        {/* Navigation */}
+                        <div className="nav-row">
+                            {step > 1 && <button className="btn-back" onClick={prevStep}>← Kembali</button>}
+                            {step < 5
+                                ? <button className="btn-next" onClick={nextStep}>Lanjut →</button>
+                                : <button className="btn-submit" onClick={handleSubmit} disabled={submitting}>
+                                    {submitting ? "⏳ Mendaftar..." : "✅ Kirim Pendaftaran"}
+                                </button>
+                            }
                         </div>
-                      ))}
                     </div>
-                  </div>
-                ))}
 
-                <div style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 12, padding: "12px 16px", fontSize: 13, color: "#92400e", display: "flex", gap: 10 }}>
-                  <span style={{ flexShrink: 0 }}>💡</span>
-                  <span>Pendaftaran akan diproses oleh admin. Pantau status di halaman <strong>Status Pendaftaran</strong>.</span>
-                </div>
-              </>
-            )}
-
-            {/* Navigation */}
-            <div className="nav-row">
-              {step > 1 && <button className="btn-back" onClick={prevStep}>← Kembali</button>}
-              {step < 5
-                ? <button className="btn-next" onClick={nextStep}>Lanjut →</button>
-                : <button className="btn-submit" onClick={handleSubmit} disabled={submitting}>
-                    {submitting ? "⏳ Mendaftar..." : "✅ Kirim Pendaftaran"}
-                  </button>
-              }
-            </div>
-          </div>
-
-          <p style={{ textAlign: "center", marginTop: 24, fontSize: 13.5, color: "#6b7280" }}>
-            Sudah punya akun?{" "}
-            <span onClick={() => navigate("/login")} style={{ color: "#2f855a", fontWeight: 600, cursor: "pointer" }}>
+                    <p style={{ textAlign: "center", marginTop: 24, fontSize: 13.5, color: "#6b7280" }}>
+                        Sudah punya akun?{" "}
+                        <span onClick={() => navigate("/login")} style={{ color: "#2f855a", fontWeight: 600, cursor: "pointer" }}>
               Masuk di sini
             </span>
-          </p>
-        </div>
-      </div>
-    </>
-  );
+                    </p>
+                </div>
+            </div>
+        </>
+    );
 }

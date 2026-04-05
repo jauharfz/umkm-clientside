@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import api, { setToken, setUser } from "../../services/api";
+import api from "../../services/api";
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -36,162 +36,184 @@ const CSS = `
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .btn-secondary{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;background:white;border:1.5px solid #e5e7eb;border-radius:14px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;color:#374151;transition:all .2s;margin-bottom:8px}
 .btn-secondary:hover{border-color:#9ca3af;background:#f9fafb}
+.no-email-box{background:#fff7ed;border:1.5px solid #fed7aa;border-radius:14px;padding:14px 16px;margin-bottom:24px;font-size:13px;color:#9a3412;text-align:left}
 `;
 
 const STATUS_CONFIG = {
-  pending: {
-    icon:   "⏳",
-    badge:  "Menunggu Konfirmasi",
-    title:  "Sedang Diproses",
-    desc:   "Pendaftaranmu sudah kami terima. Admin sedang memverifikasi data dan akan segera menghubungimu melalui WhatsApp.",
-    infos: [
-      { dot: "#f59e0b", text: "Proses verifikasi biasanya 1×24 jam" },
-      { dot: "#f59e0b", text: "Pastikan WhatsApp kamu aktif" },
-      { dot: "#f59e0b", text: "Halaman ini refresh otomatis setiap 30 detik" },
-    ],
-  },
-  rejected: {
-    icon:   "❌",
-    badge:  "Tidak Disetujui",
-    title:  "Pendaftaran Ditolak",
-    desc:   "Maaf, pendaftaranmu belum bisa diproses. Kemungkinan karena kios tidak cocok atau ada kendala lain. Silakan pilih kios lain dan coba lagi.",
-    infos: [
-      { dot: "#ef4444", text: "Kamu bisa pilih kios lain yang tersedia" },
-      { dot: "#ef4444", text: "Hubungi admin untuk informasi lebih lanjut" },
-    ],
-  },
-  approved: {
-    icon:   "🎉",
-    badge:  "Disetujui",
-    title:  "Selamat, Berhasil!",
-    desc:   "Pendaftaranmu telah disetujui oleh admin. Kamu sekarang bisa mengakses dashboard UMKM dan mulai mengelola kiosmu.",
-    infos: [
-      { dot: "#22c55e", text: "Kios kamu sudah siap digunakan" },
-      { dot: "#22c55e", text: "Pantau stok & transaksi di dashboard" },
-      { dot: "#22c55e", text: "Acara dimulai 22 Maret 2026" },
-    ],
-  },
+    pending: {
+        icon:   "⏳",
+        badge:  "Menunggu Konfirmasi",
+        title:  "Sedang Diproses",
+        desc:   "Pendaftaranmu sudah kami terima. Admin sedang memverifikasi data dan akan segera menghubungimu melalui WhatsApp.",
+        infos: [
+            { dot: "#f59e0b", text: "Proses verifikasi biasanya 1×24 jam" },
+            { dot: "#f59e0b", text: "Pastikan WhatsApp kamu aktif" },
+            { dot: "#f59e0b", text: "Halaman ini refresh otomatis setiap 30 detik" },
+        ],
+    },
+    rejected: {
+        icon:   "❌",
+        badge:  "Tidak Disetujui",
+        title:  "Pendaftaran Ditolak",
+        desc:   "Maaf, pendaftaranmu belum bisa diproses. Kemungkinan karena kios tidak cocok atau ada kendala lain. Silakan pilih kios lain dan coba lagi.",
+        infos: [
+            { dot: "#ef4444", text: "Kamu bisa pilih kios lain yang tersedia" },
+            { dot: "#ef4444", text: "Hubungi admin untuk informasi lebih lanjut" },
+        ],
+    },
+    approved: {
+        icon:   "🎉",
+        badge:  "Disetujui",
+        title:  "Selamat, Berhasil!",
+        desc:   "Pendaftaranmu telah disetujui oleh admin. Silakan login untuk mengakses dashboard UMKM dan mulai mengelola kiosmu.",
+        infos: [
+            { dot: "#22c55e", text: "Kios kamu sudah siap digunakan" },
+            { dot: "#22c55e", text: "Pantau stok & transaksi di dashboard" },
+            { dot: "#22c55e", text: "Acara dimulai 22 Maret 2026" },
+        ],
+    },
 };
 
 export default function Status() {
-  const navigate = useNavigate();
-  const [status, setStatus] = useState("pending");
-  const [userData, setUserData] = useState(null);
-  const [loading, setLoading]   = useState(true);
+    const navigate = useNavigate();
+    const [status, setStatus]   = useState("pending");
+    const [loading, setLoading] = useState(true);
 
-  const fetchStatus = async () => {
-    try {
-      const res = await api.get("/auth/status");
-      const s = res.data?.status_pendaftaran || res.data?.status || "pending";
-      setStatus(s);
-      if (res.data) setUserData(res.data);
+    // FIX: ambil email dari localStorage yang disimpan oleh Register.jsx
+    // Endpoint GET /api/auth/status membutuhkan query param ?email=
+    const email = localStorage.getItem("reg_email") || "";
 
-      // Kalau sudah approved, simpan token & user lalu redirect
-      if (s === "approved" && res.data?.token) {
-        setToken(res.data.token);
-        setUser(res.data.user || res.data);
-      }
-    } catch {
-      // Jika belum login / token tidak ada, tetap tampilkan pending
-      setStatus("pending");
-    } finally {
-      setLoading(false);
-    }
-  };
+    const fetchStatus = async () => {
+        // Jika tidak ada email, tidak bisa query status — tampilkan pending saja
+        if (!email) {
+            setLoading(false);
+            return;
+        }
 
-  useEffect(() => {
-    fetchStatus();
-    // Polling setiap 30 detik selama masih pending
-    const interval = setInterval(() => {
-      if (status === "pending") fetchStatus();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, []);
+        try {
+            // FIX: kirim email sebagai query param sesuai signature backend
+            const res = await api.get(`/auth/status?email=${encodeURIComponent(email)}`);
+            // Backend mengembalikan { status: "success", data: { email, status_pendaftaran, nama_usaha } }
+            const s = res?.data?.status_pendaftaran || "pending";
+            setStatus(s);
 
-  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+            // FIX: endpoint /auth/status TIDAK mengembalikan token.
+            // Token hanya didapat dari POST /auth/login.
+            // Saat approved, cukup tampilkan tombol "Masuk / Login".
+            // Jangan coba setToken/setUser di sini — tidak ada datanya.
+        } catch {
+            // Jika email tidak ditemukan (404) atau error lain, tetap pending
+            setStatus("pending");
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  if (loading) {
-    return (
-      <>
-        <style>{CSS}</style>
-        <div className="status-root">
-          <div className="status-card">
-            <div className="status-brand">
-              <div className="status-brand-mark">🎪</div>
-              <span className="status-brand-name">Peken Banyumas 2026</span>
-            </div>
-            <p style={{ color: "#6b7280", fontSize: 14 }}>Memeriksa status pendaftaran...</p>
-          </div>
-        </div>
-      </>
-    );
-  }
+    useEffect(() => {
+        fetchStatus();
+        const interval = setInterval(() => {
+            if (status === "pending") fetchStatus();
+        }, 30000);
+        return () => clearInterval(interval);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-  return (
-    <>
-      <style>{CSS}</style>
-      <div className="status-root">
-        <div className="status-card">
+    const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
 
-          {/* Brand */}
-          <div className="status-brand">
-            <div className="status-brand-mark">🎪</div>
-            <span className="status-brand-name">Peken Banyumas 2026</span>
-          </div>
-
-          {/* Icon */}
-          <div className={`status-icon-wrap ${status}`}>
-            {status === "pending" && <span className="pulse">{cfg.icon}</span>}
-            {status !== "pending" && cfg.icon}
-          </div>
-
-          {/* Badge */}
-          <div className={`status-badge ${status}`}>
-            {status === "pending"  && "⏳ "}
-            {status === "rejected" && "✕ "}
-            {status === "approved" && "✓ "}
-            {cfg.badge}
-          </div>
-
-          <h2 className="status-title">{cfg.title}</h2>
-          <p className="status-desc">{cfg.desc}</p>
-
-          <div className="info-box">
-            {cfg.infos.map(({ dot, text }, i) => (
-              <div className="info-row" key={i}>
-                <span className="info-dot" style={{ background: dot }} />
-                {text}
-              </div>
-            ))}
-          </div>
-
-          {/* Action buttons */}
-          {status === "approved" && (
-            <button className="btn-primary" onClick={() => navigate("/")}>
-              🏠 Masuk ke Dashboard
-            </button>
-          )}
-          {status === "rejected" && (
-            <button className="btn-danger" onClick={() => navigate("/register")}>
-              🔄 Pilih Kios Lain
-            </button>
-          )}
-          {status === "pending" && (
+    if (loading) {
+        return (
             <>
-              <button
-                className="btn-primary"
-                style={{ background: "linear-gradient(135deg,#a16207,#d97706)", boxShadow: "0 6px 20px rgba(217,119,6,.35)" }}
-                onClick={() => window.open("https://wa.me/6282192058122", "_blank")}
-              >
-                💬 Hubungi Admin WA
-              </button>
-              <button className="btn-secondary" onClick={fetchStatus}>
-                🔄 Refresh Status
-              </button>
+                <style>{CSS}</style>
+                <div className="status-root">
+                    <div className="status-card">
+                        <div className="status-brand">
+                            <div className="status-brand-mark">🎪</div>
+                            <span className="status-brand-name">Peken Banyumas 2026</span>
+                        </div>
+                        <p style={{ color: "#6b7280", fontSize: 14 }}>Memeriksa status pendaftaran...</p>
+                    </div>
+                </div>
             </>
-          )}
-        </div>
-      </div>
-    </>
-  );
+        );
+    }
+
+    return (
+        <>
+            <style>{CSS}</style>
+            <div className="status-root">
+                <div className="status-card">
+
+                    {/* Brand */}
+                    <div className="status-brand">
+                        <div className="status-brand-mark">🎪</div>
+                        <span className="status-brand-name">Peken Banyumas 2026</span>
+                    </div>
+
+                    {/* Peringatan jika tidak ada email */}
+                    {!email && (
+                        <div className="no-email-box">
+                            ⚠ Email tidak ditemukan. Silakan daftar ulang atau cek status langsung via halaman <strong>Login</strong>.
+                        </div>
+                    )}
+
+                    {/* Icon */}
+                    <div className={`status-icon-wrap ${status}`}>
+                        {status === "pending" && <span className="pulse">{cfg.icon}</span>}
+                        {status !== "pending" && cfg.icon}
+                    </div>
+
+                    {/* Badge */}
+                    <div className={`status-badge ${status}`}>
+                        {status === "pending"  && "⏳ "}
+                        {status === "rejected" && "✕ "}
+                        {status === "approved" && "✓ "}
+                        {cfg.badge}
+                    </div>
+
+                    <h2 className="status-title">{cfg.title}</h2>
+                    <p className="status-desc">{cfg.desc}</p>
+
+                    <div className="info-box">
+                        {cfg.infos.map(({ dot, text }, i) => (
+                            <div className="info-row" key={i}>
+                                <span className="info-dot" style={{ background: dot }} />
+                                {text}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Action buttons */}
+                    {status === "approved" && (
+                        // FIX: endpoint status tidak mengembalikan token.
+                        // Arahkan ke halaman login — user login manual untuk dapat token.
+                        <button className="btn-primary" onClick={() => {
+                            localStorage.removeItem("reg_email"); // bersihkan setelah approved
+                            navigate("/login");
+                        }}>
+                            🔑 Login ke Dashboard
+                        </button>
+                    )}
+                    {status === "rejected" && (
+                        <button className="btn-danger" onClick={() => navigate("/register")}>
+                            🔄 Pilih Kios Lain
+                        </button>
+                    )}
+                    {status === "pending" && (
+                        <>
+                            <button
+                                className="btn-primary"
+                                style={{ background: "linear-gradient(135deg,#a16207,#d97706)", boxShadow: "0 6px 20px rgba(217,119,6,.35)" }}
+                                onClick={() => window.open("https://wa.me/6282192058122", "_blank")}
+                            >
+                                💬 Hubungi Admin WA
+                            </button>
+                            <button className="btn-secondary" onClick={fetchStatus}>
+                                🔄 Refresh Status
+                            </button>
+                        </>
+                    )}
+                </div>
+            </div>
+        </>
+    );
 }
