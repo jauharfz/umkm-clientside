@@ -41,7 +41,17 @@ export default function PromoDiskon() {
   // ── TAMBAH ──
   const handleAdd = async (data) => {
     try {
-      const res = await api.post("/promo", data);
+      // FIX: backend menggunakan Form() — selalu multipart/form-data
+      const fd = new FormData();
+      fd.append("nama",  data.nama);
+      fd.append("tipe",  data.tipe);
+      fd.append("nilai", data.nilai);
+      fd.append("mulai", data.mulai);
+      fd.append("akhir", data.akhir);
+      if (data.file_poster instanceof File) {
+        fd.append("file_poster", data.file_poster);
+      }
+      const res = await api.postForm("/promo", fd);
       setPromos([res.data, ...promos]);
       setShowModal(false);
       addToast("✅ Promo berhasil ditambahkan!");
@@ -53,7 +63,18 @@ export default function PromoDiskon() {
   // ── EDIT ──
   const handleUpdate = async (data) => {
     try {
-      const res = await api.patch(`/promo/${data.id}`, data);
+      // FIX: backend menggunakan PUT (bukan PATCH) + multipart/form-data
+      const fd = new FormData();
+      if (data.nama  !== undefined) fd.append("nama",   data.nama);
+      if (data.tipe  !== undefined) fd.append("tipe",   data.tipe);
+      if (data.nilai !== undefined) fd.append("nilai",  data.nilai);
+      if (data.mulai !== undefined) fd.append("mulai",  data.mulai);
+      if (data.akhir !== undefined) fd.append("akhir",  data.akhir);
+      if (data.status !== undefined) fd.append("status", data.status);
+      if (data.file_poster instanceof File) {
+        fd.append("file_poster", data.file_poster);
+      }
+      const res = await api.putForm(`/promo/${data.id}`, fd);
       setPromos(promos.map((p) => (p.id === data.id ? res.data : p)));
       setEditItem(null);
       addToast("✏️ Promo berhasil diperbarui!");

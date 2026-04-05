@@ -17,11 +17,9 @@ export default function TambahKasModal({ show, onClose, onSave }) {
       return;
     }
 
-    // Format tanggal jadi "10 Mar 2026"
-    const d = new Date(form.tgl);
-    const tglFmt = d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
-
-    onSave({ ...form, nominal: Number(form.nominal), tgl: tglFmt });
+    // FIX: kirim tgl dalam format ISO (YYYY-MM-DD), bukan dilocalize
+    // Backend Pydantic model `tgl: date` hanya terima ISO date string
+    onSave({ ...form, nominal: Number(form.nominal) });
 
     setForm({ ket: "", jenis: "masuk", nominal: "", tgl: todayISO(), kategori: "Penjualan" });
   };

@@ -21,13 +21,16 @@ import api from "../services/api";
 const fmt = (angka) => new Intl.NumberFormat("id-ID").format(angka);
 
 export default function BukuKas() {
-  const [data, setData]           = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [filter, setFilter]       = useState("semua");
-  const [showModal, setShowModal] = useState(false);
-  const [editItem, setEditItem]   = useState(null);
+  // FIX: Pisahkan state ringkasan dan transaksi sesuai respons backend
+  // Backend: { status, data: { ringkasan: {...}, transaksi: [...] } }
+  const [data, setData]             = useState([]);        // array transaksi
+  const [ringkasan, setRingkasan]   = useState(null);      // objek ringkasan dari backend
+  const [loading, setLoading]       = useState(true);
+  const [filter, setFilter]         = useState("semua");
+  const [showModal, setShowModal]   = useState(false);
+  const [editItem, setEditItem]     = useState(null);
   const [deleteItem, setDeleteItem] = useState(null);
-  const [toast, setToast]         = useState("");
+  const [toast, setToast]           = useState("");
 
   const showToast = (msg) => {
     setToast(msg);
@@ -43,7 +46,9 @@ export default function BukuKas() {
     setLoading(true);
     try {
       const res = await api.get("/kas");
-      setData(res.data || []);
+      // FIX: res.data adalah { ringkasan, transaksi } bukan array langsung
+      setData(res.data?.transaksi || []);
+      setRingkasan(res.data?.ringkasan || null);
     } catch {
       showToast("⚠️ Gagal memuat data kas");
     } finally {
@@ -51,12 +56,13 @@ export default function BukuKas() {
     }
   };
 
-  // ── SUMMARY ──
-  const totalMasuk  = data.filter(d => d.jenis === "masuk" ).reduce((a, b) => a + b.nominal, 0);
-  const totalKeluar = data.filter(d => d.jenis === "keluar").reduce((a, b) => a + b.nominal, 0);
-  const saldo       = totalMasuk - totalKeluar;  // FIX: dulu hardcoded "Rp. 200.000"
-  const cntMasuk    = data.filter(d => d.jenis === "masuk" ).length;
-  const cntKeluar   = data.filter(d => d.jenis === "keluar").length;
+  // ── SUMMARY — gunakan ringkasan dari backend jika tersedia ──
+  // Fallback ke hitung manual dari array jika ringkasan belum ada
+  const totalMasuk  = ringkasan?.total_masuk  ?? data.filter(d => d.jenis === "masuk" ).reduce((a, b) => a + b.nominal, 0);
+  const totalKeluar = ringkasan?.total_keluar ?? data.filter(d => d.jenis === "keluar").reduce((a, b) => a + b.nominal, 0);
+  const saldo       = ringkasan?.saldo        ?? (totalMasuk - totalKeluar);
+  const cntMasuk    = ringkasan?.count_masuk  ?? data.filter(d => d.jenis === "masuk" ).length;
+  const cntKeluar   = ringkasan?.count_keluar ?? data.filter(d => d.jenis === "keluar").length;
 
   // ── FILTER ──
   const filteredData = filter === "semua" ? data : data.filter(d => d.jenis === filter);
@@ -64,14 +70,16 @@ export default function BukuKas() {
   // ── TAMBAH ──
   const handleAdd = async (item) => {
     try {
+      // FIX: field names sesuai backend (tgl/ket bukan tanggal/keterangan)
       const res = await api.post("/kas", {
-        tanggal:   item.tgl,
-        keterangan: item.ket,
-        kategori:  item.kategori,
-        jenis:     item.jenis,
-        nominal:   item.nominal,
+        tgl:      item.tgl,
+        ket:      item.ket,
+        jenis:    item.jenis,
+        nominal:  item.nominal,
+        kategori: item.kategori,
       });
-      setData([res.data, ...data]);
+      // Setelah tambah, refresh seluruh data agar running saldo akurat
+      await fetchKas();
       setShowModal(false);
       showToast("✅ Transaksi berhasil disimpan!");
     } catch {
@@ -82,14 +90,17 @@ export default function BukuKas() {
   // ── EDIT ──
   const handleUpdate = async (updated) => {
     try {
-      const res = await api.patch(`/kas/${updated.id}`, {
-        tanggal:    updated.tgl,
-        keterangan: updated.ket,
-        kategori:   updated.kategori,
-        jenis:      updated.jenis,
-        nominal:    updated.nominal,
+      // FIX: gunakan PUT (bukan PATCH) sesuai backend router
+      // FIX: field names sesuai backend (tgl/ket)
+      await api.put(`/kas/${updated.id}`, {
+        tgl:      updated.tgl,
+        ket:      updated.ket,
+        jenis:    updated.jenis,
+        nominal:  updated.nominal,
+        kategori: updated.kategori,
       });
-      setData(data.map(d => d.id === updated.id ? res.data : d));
+      // Refresh untuk recalc running saldo
+      await fetchKas();
       setEditItem(null);
       showToast("✏️ Data berhasil diupdate!");
     } catch {
@@ -101,7 +112,7 @@ export default function BukuKas() {
   const handleDelete = async () => {
     try {
       await api.delete(`/kas/${deleteItem.id}`);
-      setData(data.filter(d => d.id !== deleteItem.id));
+      await fetchKas();
       setDeleteItem(null);
       showToast("🗑️ Data berhasil dihapus!");
     } catch {
@@ -138,7 +149,6 @@ export default function BukuKas() {
         </div>
 
         <div className="bk-topbar-right">
-          {/* FIX: filter buttons masuk/keluar tidak punya onClick — ditambahkan */}
           <button
             className={`bk-filter-btn ${filter === "semua" ? "active" : ""}`}
             onClick={() => setFilter("semua")}
@@ -173,7 +183,6 @@ export default function BukuKas() {
             <Flame size={14} />
             SALDO SAAT INI
           </div>
-          {/* FIX: dulu hardcoded "Rp. 200.000", sekarang dihitung dari data */}
           <div className="bk-sum-val">
             {loading ? "—" : `Rp ${fmt(saldo)}`}
           </div>
@@ -201,7 +210,6 @@ export default function BukuKas() {
             <h3><FileText size={16} />Daftar Transaksi Kas</h3>
             <p>Sate Blengong Bu Yati · Stand A-12</p>
           </div>
-          {/* FIX: dulu export button tidak punya onClick */}
           <button className="bk-btn-export" onClick={handleExport}>
             <Download size={14} />
             Export

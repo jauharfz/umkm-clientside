@@ -99,7 +99,7 @@ export default function Notifikasi() {
 
   useEffect(() => {
     api.get("/notifikasi")
-      .then(res => setNotifs(res.data || []))
+      .then(res => setNotifs(res.data?.notifikasi || []))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

@@ -8,7 +8,7 @@ export default function TambahPromoModal({ show, onClose, onSave, onToast }) {
     nilai: "",
     mulai: "",
     akhir: "",
-    poster: null,
+    file_poster: null,
   });
   const [posterPreview, setPosterPreview] = useState(null);
   const fileRef = useRef();
@@ -20,11 +20,11 @@ export default function TambahPromoModal({ show, onClose, onSave, onToast }) {
   const handleFile = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    // FIX: simpan File object (bukan base64), agar bisa dikirim via FormData
+    set("file_poster", file);
+    // Preview tetap pakai FileReader
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      setPosterPreview(ev.target.result);
-      set("poster", ev.target.result);
-    };
+    reader.onload = (ev) => setPosterPreview(ev.target.result);
     reader.readAsDataURL(file);
   };
 
@@ -35,12 +35,12 @@ export default function TambahPromoModal({ show, onClose, onSave, onToast }) {
     }
     onSave({ ...form });
     // reset
-    setForm({ nama: "", tipe: "Persentase", nilai: "", mulai: "", akhir: "", poster: null });
+    setForm({ nama: "", tipe: "Persentase", nilai: "", mulai: "", akhir: "", file_poster: null });
     setPosterPreview(null);
   };
 
   const handleClose = () => {
-    setForm({ nama: "", tipe: "Persentase", nilai: "", mulai: "", akhir: "", poster: null });
+    setForm({ nama: "", tipe: "Persentase", nilai: "", mulai: "", akhir: "", file_poster: null });
     setPosterPreview(null);
     onClose();
   };

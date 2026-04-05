@@ -3,7 +3,7 @@ import "../../assets/styles/promo.css";
 
 export default function EditPromoModal({ show, item, onClose, onSave, onToast }) {
   const [form, setForm] = useState({
-    nama: "", tipe: "Persentase", nilai: "", mulai: "", akhir: "", status: "aktif", poster: null,
+    nama: "", tipe: "Persentase", nilai: "", mulai: "", akhir: "", status: "aktif", file_poster: null,
   });
   const [posterPreview, setPosterPreview] = useState(null);
   const fileRef = useRef();
@@ -30,11 +30,10 @@ export default function EditPromoModal({ show, item, onClose, onSave, onToast })
   const handleFile = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    // FIX: simpan File object untuk dikirim via FormData
+    set("file_poster", file);
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      setPosterPreview(ev.target.result);
-      set("poster", ev.target.result);
-    };
+    reader.onload = (ev) => setPosterPreview(ev.target.result);
     reader.readAsDataURL(file);
   };
 
@@ -104,7 +103,7 @@ export default function EditPromoModal({ show, item, onClose, onSave, onToast })
             {posterPreview ? (
               <div className="pd-poster-preview">
                 <img src={posterPreview} alt="preview" />
-                <button className="pd-poster-remove" onClick={() => { setPosterPreview(null); set("poster", null); }}>
+                <button className="pd-poster-remove" onClick={() => { setPosterPreview(null); set("file_poster", null); }}>
                   ✕ Hapus Gambar
                 </button>
               </div>

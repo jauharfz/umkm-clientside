@@ -29,8 +29,12 @@ info:
 servers:
   - url: http://localhost:8000/api
     description: FastAPI Local Development Server
-  - url: https://<your-domain>/api
-    description: FastAPI Production Server
+  - url: https://<your-hf-space>.hf.space/api
+    description: "FastAPI Production Server (Hugging Spaces)"
+    variables:
+      host:
+        default: https://<your-hf-space>.hf.space
+        description: Ganti dengan URL Hugging Spaces deployment kamu
 
 tags:
   - name: Autentikasi
@@ -688,9 +692,9 @@ paths:
         - Promo & Diskon
       summary: Tambah promo baru
       description: |
-        Mendukung upload gambar poster promo (opsional).
-        Jika ada poster, gunakan `multipart/form-data`.
-        Jika tidak ada poster, bisa menggunakan `application/json`.
+        Selalu gunakan `multipart/form-data` karena backend menggunakan `Form()` parameter
+        untuk semua field (termasuk non-file). Upload gambar poster bersifat opsional
+        — kirim tanpa `file_poster` jika tidak ada poster.
       operationId: tambahPromo
       security:
         - BearerAuth: []
@@ -861,6 +865,76 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /transaksi:
+    post:
+      tags:
+        - Riwayat Transaksi
+      summary: Tambah transaksi manual
+      description: |
+        Menambahkan transaksi penjualan baru secara manual.
+        Cocok untuk input kasir langsung dari aplikasi kios.
+        Setelah disimpan, notifikasi transaksi baru otomatis dibuat.
+      operationId: tambahTransaksi
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customer:
+                  type: string
+                  description: Nama pelanggan (opsional)
+                  example: "Pak Budi"
+                item:
+                  type: string
+                  description: Deskripsi item yang dibeli (opsional)
+                  example: "Sate Blengong × 2"
+                total:
+                  type: integer
+                  minimum: 0
+                  description: Total transaksi dalam rupiah
+                  example: 50000
+                status:
+                  type: string
+                  enum: [Selesai, Proses]
+                  default: "Selesai"
+                  example: "Selesai"
+                waktu:
+                  type: string
+                  format: date-time
+                  description: "Waktu transaksi (default: server time WIB)"
+                  example: "2026-03-22T10:30:00+07:00"
+      responses:
+        '201':
+          description: Transaksi berhasil disimpan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Transaksi berhasil disimpan"
+                  data:
+                    $ref: '#/components/schemas/Transaksi'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Total negatif atau status tidak valid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: "error"
+                message: "Total tidak boleh negatif"
+
   # ─────────────────────────────────────────────────────────────────────────
   # NOTIFIKASI
   # ─────────────────────────────────────────────────────────────────────────
@@ -909,6 +983,34 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /notifikasi/baca-semua:
+    patch:
+      tags:
+        - Notifikasi
+      summary: Tandai semua notifikasi sebagai sudah dibaca
+      description: |
+        **Penting:** Endpoint ini didaftarkan sebelum `PATCH /notifikasi/{id}/baca`
+        di FastAPI agar routing tidak konflik (static path lebih dulu dari dynamic).
+      operationId: bacaSemuaNotifikasi
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Semua notifikasi berhasil ditandai sudah dibaca.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Semua notifikasi ditandai sudah dibaca"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /notifikasi/{id}/baca:
     patch:
       tags:
@@ -942,31 +1044,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
-
-  /notifikasi/baca-semua:
-    patch:
-      tags:
-        - Notifikasi
-      summary: Tandai semua notifikasi sebagai sudah dibaca
-      operationId: bacaSemuaNotifikasi
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Semua notifikasi berhasil ditandai sudah dibaca.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "success"
-                  message:
-                    type: string
-                    example: "Semua notifikasi ditandai sudah dibaca"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
 
   # ─────────────────────────────────────────────────────────────────────────
   # PROFIL & PENGATURAN
@@ -1160,8 +1237,9 @@ paths:
         Endpoint **publik tanpa autentikasi** yang digunakan Gate untuk
         menampilkan benefit diskon kepada member yang tap NFC.
 
-        Dipanggil dari endpoint `GET /discounts` di Gate (REQ-MEMBER-002),
-        yang mengisi tabel `DISKON_MEMBER` dan `TENANT_UMKM` di sisi Gate.
+        Endpoint ini berdiri sendiri — Gate memiliki tabel `DISKON_MEMBER` dan
+        `TENANT_UMKM` sendiri di database-nya yang terpisah (bukan proxy langsung ke sini).
+        Gate dapat menyinkronkan data dari endpoint ini secara periodik ke DB-nya sendiri.
 
         Hanya mengembalikan promo dengan status `aktif` dari UMKM yang approved.
       operationId: getPublicDiskon
@@ -1255,7 +1333,7 @@ components:
               type: string
               example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
             user:
-              $ref: '#/components/schemas/UmkmProfile'
+              $ref: '#/components/schemas/UmkmProfileLogin'
 
     RegisterRequest:
       type: object
@@ -1306,6 +1384,52 @@ components:
           example: true
 
     # ── UMKM PROFILE ──────────────────────────────────────────────────────
+
+    UmkmProfileLogin:
+      type: object
+      description: |
+        Data user yang dikembalikan saat login. Field `stats` tidak disertakan
+        karena dihitung secara terpisah di endpoint `GET /profil`.
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+        nama_pemilik:
+          type: string
+          example: "Bu Yati Wulandari"
+        email:
+          type: string
+          format: email
+          example: "buyati@gmail.com"
+        nama_usaha:
+          type: string
+          example: "Sate Blengong Bu Yati"
+        alamat:
+          type: string
+          example: "Jl. Merdeka No.5, Banyumas"
+        kategori:
+          type: string
+          enum: [Kuliner, Fashion, Kerajinan, Lainnya]
+          example: "Kuliner"
+        deskripsi:
+          type: string
+          nullable: true
+          example: "Sate khas Banyumas dengan bumbu spesial"
+        nomor_stand:
+          type: string
+          example: "A-12"
+        zona:
+          type: string
+          example: "Kuliner"
+        status_pendaftaran:
+          type: string
+          enum: [pending, approved, rejected]
+          example: "approved"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-01-15T08:00:00+07:00"
 
     UmkmProfile:
       type: object
