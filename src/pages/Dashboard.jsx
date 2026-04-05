@@ -4,49 +4,91 @@ import { Bell, Package, Banknote, AlertTriangle, ShoppingBasket, AlertOctagon, B
 import "../assets/styles/dashboard.css";
 import api, { getUser } from "../services/api";
 
-// ── COUNTDOWN ───────────────────────────────────────────
+// ── HELPERS ──────────────────────────────────────────────────
+
+/**
+ * Kembalikan tanggal hari ini dalam format YYYY-MM-DD sesuai zona WIB (UTC+7).
+ * Menggunakan Intl API agar akurat di semua browser/OS, terlepas dari
+ * zona lokal device pengguna.
+ */
+function getTodayWIB() {
+    try {
+        const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" })
+            .formatToParts(new Date());
+        const get = (type) => parts.find((p) => p.type === type)?.value ?? "";
+        return `${get("year")}-${get("month")}-${get("day")}`;
+    } catch {
+        // Fallback sederhana jika Intl tidak tersedia
+        const d = new Date(Date.now() + 7 * 3600 * 1000);
+        return d.toISOString().slice(0, 10);
+    }
+}
+
+/**
+ * Selisih hari antara tanggal event (YYYY-MM-DD) dan hari ini WIB.
+ * Positif = event di masa depan, 0 = hari ini, negatif = sudah lewat.
+ * Perbandingan string YYYY-MM-DD cukup akurat untuk membandingkan tanggal.
+ */
+function getDaysUntil(tanggal) {
+    const [ey, em, ed] = tanggal.split("-").map(Number);
+    const today        = getTodayWIB();
+    const [ty, tm, td] = today.split("-").map(Number);
+    const msPerDay     = 24 * 60 * 60 * 1000;
+    const eventMs      = new Date(ey, em - 1, ed).getTime();
+    const todayMs      = new Date(ty, tm - 1, td).getTime();
+    return Math.round((eventMs - todayMs) / msPerDay);
+}
+
+
+// ── COUNTDOWN ───────────────────────────────────────────────
+/**
+ * Tampilkan countdown event dalam satuan HARI saja.
+ *
+ * Alasan tidak memakai jam/menit/detik:
+ *   - DB Gate menyimpan DATE bukan TIMESTAMPTZ → jam mulai tidak diketahui
+ *   - Sebelumnya hardcode T08:00:00+07:00 yang tidak akurat
+ *   - Event Peken Banyumasan bersifat day-long, bukan per-jam
+ *   - Cukup logis untuk admin aktifkan event di hari pelaksanaan
+ *
+ * States:
+ *   loading  → belum dapat respons API
+ *   ongoing  → event status = 'aktif'
+ *   today    → tanggal = hari ini, admin belum aktifkan (status masih selesai)
+ *   countdown→ event mendatang (days > 0)
+ *   none     → tidak ada event aktif/mendatang
+ */
 function Countdown() {
-    const [state, setState] = useState("loading"); // "loading"|"countdown"|"ongoing"|"none"
-    const [time,  setTime]  = useState({ d: "00", j: "00", m: "00", s: "00" });
+    const [state, setState] = useState("loading"); // "loading"|"countdown"|"today"|"ongoing"|"none"
+    const [days,  setDays]  = useState(0);
 
     useEffect(() => {
-        // Endpoint publik, tidak butuh token.
         const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
-        let timerId;
 
         fetch(`${API_URL}/public/event`)
-            .then(r => r.json())
-            .then(res => {
+            .then((r) => r.json())
+            .then((res) => {
                 const ev = res?.data;
                 if (!ev) { setState("none"); return; }
 
-                // Event aktif → sedang berlangsung sekarang
+                // Event sedang berlangsung
                 if (ev.status === "aktif") { setState("ongoing"); return; }
 
-                // Event mendatang: Gate DB hanya simpan DATE (tanpa jam).
-                // Default jam mulai: 08:00 WIB (UTC+7) — sesuai kebijakan event.
-                const target = new Date(`${ev.tanggal}T08:00:00+07:00`);
-                if (target <= new Date()) { setState("ongoing"); return; }
+                // Event mendatang — hitung selisih hari berdasarkan tanggal WIB
+                // Tidak ada asumsi jam mulai karena DB hanya simpan DATE
+                const diff = getDaysUntil(ev.tanggal);
 
-                setState("countdown");
-
-                function tick() {
-                    const diff = target - new Date();
-                    if (diff <= 0) { setState("ongoing"); clearInterval(timerId); return; }
-                    setTime({
-                        d: String(Math.floor(diff / 86400000)).padStart(2, "0"),
-                        j: String(Math.floor((diff % 86400000) / 3600000)).padStart(2, "0"),
-                        m: String(Math.floor((diff % 3600000) / 60000)).padStart(2, "0"),
-                        s: String(Math.floor((diff % 60000) / 1000)).padStart(2, "0"),
-                    });
+                if (diff <= 0) {
+                    // Tanggal = hari ini atau sudah lewat, tapi admin belum aktifkan
+                    setState("today");
+                } else {
+                    setDays(diff);
+                    setState("countdown");
                 }
-                tick();
-                // Update setiap 1 detik agar hitungan detik berjalan
-                timerId = setInterval(tick, 1000);
             })
             .catch(() => setState("none"));
 
-        return () => clearInterval(timerId);
+        // Tidak butuh setInterval — HARI tidak berubah dalam satu sesi.
+        // Jika user buka halaman pas tengah malam: refresh halaman cukup.
     }, []);
 
     if (state === "loading") return null;
@@ -67,20 +109,27 @@ function Countdown() {
         </div>
     );
 
-    // state === "countdown"
+    if (state === "today") return (
+        <div className="cd-boxes" style={{ alignItems: "center" }}>
+            <div className="cd-box" style={{ width: "auto", padding: "12px 20px" }}>
+                <div className="cd-num">🗓️</div>
+                <div className="cd-unit" style={{ fontSize: 11, marginTop: 6 }}>HARI INI</div>
+            </div>
+        </div>
+    );
+
+    // state === "countdown" — tampilkan hanya HARI
     return (
         <div className="cd-boxes">
-            {[["d", "HARI"], ["j", "JAM"], ["m", "MENIT"], ["s", "DETIK"]].map(([k, u]) => (
-                <div className="cd-box" key={k}>
-                    <div className="cd-num">{time[k]}</div>
-                    <div className="cd-unit">{u}</div>
-                </div>
-            ))}
+            <div className="cd-box" style={{ width: 90 }}>
+                <div className="cd-num">{String(days).padStart(2, "0")}</div>
+                <div className="cd-unit">HARI</div>
+            </div>
         </div>
     );
 }
 
-// ── STAT CARD ────────────────────────────────────────────
+// ── STAT CARD ────────────────────────────────────────────────
 function StatCard({ icon, label, value, unit, badge, badgeType }) {
     return (
         <div className="stat">
@@ -95,45 +144,39 @@ function StatCard({ icon, label, value, unit, badge, badgeType }) {
     );
 }
 
-// ── MAIN DASHBOARD ───────────────────────────────────────
+// ── MAIN DASHBOARD ───────────────────────────────────────────
 export default function Dashboard() {
     const navigate = useNavigate();
     const user     = getUser();
 
-    const [stats,    setStats]   = useState(null);
-    const [loading,  setLoading] = useState(true);
-    // FIX: simpan info event aktif untuk ditampilkan di banner
+    const [stats,       setStats]      = useState(null);
+    const [loading,     setLoading]    = useState(true);
     const [activeEvent, setActiveEvent] = useState(null);
 
     useEffect(() => {
         api.get("/dashboard")
-            .then(res => setStats(res.data))
+            .then((res) => setStats(res.data))
             .catch(() => {})
             .finally(() => setLoading(false));
 
-        // Fetch event info untuk nama event di banner (publik, no auth)
         const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
         fetch(`${API_URL}/public/event`)
-            .then(r => r.json())
-            .then(res => { if (res?.data) setActiveEvent(res.data); })
+            .then((r) => r.json())
+            .then((res) => { if (res?.data) setActiveEvent(res.data); })
             .catch(() => {});
     }, []);
 
-    const namaDepan   = user?.nama_pemilik?.split(" ")[0] || "Pengguna";
-    const namaUsaha   = user?.nama_usaha   || "Kios Saya";
-    const stand       = user?.nomor_stand  || "—";
-    const zona        = user?.zona         || "—";
+    const namaDepan = user?.nama_pemilik?.split(" ")[0] || "Pengguna";
+    const namaUsaha = user?.nama_usaha   || "Kios Saya";
+    const stand     = user?.nomor_stand  || "—";
+    const zona      = user?.zona         || "—";
 
-    // FIX: field dari backend adalah chart_penjualan, bukan chart_mingguan
     const chartData   = stats?.chart_penjualan    || [];
-    // FIX: field dari backend adalah ringkasan_stok, bukan stok_ringkasan
     const stokData    = stats?.ringkasan_stok     || [];
-    // FIX: field dari backend adalah transaksi_terakhir (sudah benar)
     const trxData     = stats?.transaksi_terakhir || [];
     const kritisCount = stats?.stats?.stok_kritis ?? stats?.stok_kritis ?? 0;
 
-    // chart_penjualan dari backend: { label, pendapatan, jumlah_transaksi }
-    const mx = chartData.length ? Math.max(...chartData.map(d => d.pendapatan || 0)) || 1 : 1;
+    const mx = chartData.length ? Math.max(...chartData.map((d) => d.pendapatan || 0)) || 1 : 1;
 
     return (
         <div className="dashboard">
@@ -165,7 +208,6 @@ export default function Dashboard() {
             <div className="cd-banner">
                 <div>
                     <div className="cd-lbl">Acara Dimulai Dalam</div>
-                    {/* FIX: nama event dari Gate, bukan hardcode */}
                     <div className="cd-title">{activeEvent?.nama_event || "Peken Banyumas"}</div>
                     <div className="cd-sub">{stand} · Zona {zona} · {activeEvent?.lokasi || "Masuk Gratis"}</div>
                 </div>
@@ -196,7 +238,6 @@ export default function Dashboard() {
                     <StatCard
                         icon={<Package size={20} className="icon-stats"/>}
                         label="Total Produk Kios"
-                        // FIX: stats dari backend ada di stats.stats.total_produk
                         value={stats?.stats?.total_produk ?? stats?.total_produk ?? "—"}
                         unit="item"
                     />
@@ -243,7 +284,6 @@ export default function Dashboard() {
                     {chartData.length > 0 ? (
                         <>
                             <div className="chart-wrap">
-                                {/* FIX: chart_penjualan dari backend: { label, pendapatan, jumlah_transaksi } */}
                                 {chartData.map((d, i) => (
                                     <div className="bc" key={i}>
                                         <div className="bars">
@@ -301,9 +341,7 @@ export default function Dashboard() {
                         <div key={t.id} className="trx" onClick={() => navigate("/riwayat")}>
                             <span className="trx-dot" />
                             <div className="trx-info">
-                                {/* FIX: backend mengembalikan t.customer dan t.item, bukan t.pelanggan dan t.barang */}
                                 <span className="trx-name">{t.customer || "Pelanggan"} · {t.item || "—"}</span>
-                                {/* FIX: waktu dari backend ada di t.time (sudah di-format di _fmt_trx) */}
                                 <span className="trx-time">{t.time ? new Date(t.time).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "—"}</span>
                             </div>
                             <span className="trx-total">
@@ -326,7 +364,6 @@ export default function Dashboard() {
                     {stokData.length === 0 ? (
                         <p style={{ color: "#9ca3af", fontSize: 13, padding: "8px 0" }}>Belum ada produk.</p>
                     ) : stokData.map((item) => {
-                        // FIX: field dari backend adalah item.max (stok_max), bukan item.stok_max
                         const pct   = item.max ? (item.stok / item.max) * 100 : 0;
                         const isLow = pct <= 20;
                         return (
