@@ -3,7 +3,7 @@ import { getUser } from "../../services/api";
 
 export default function EditBarangModal({ show, onClose, item, onSave }) {
   const user  = getUser();
-  const stand = user?.nomor_stand || \"—\";
+  const stand = user?.nomor_stand || "—";
   const [form, setForm] = useState({
     nama: "", kategori: "Makanan", harga: "", stok: "", satuan: "",
   });

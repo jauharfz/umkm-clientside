@@ -6,8 +6,8 @@ export default function TambahBarangModal({
   handleSubmit,
 }) {
   const user      = getUser();
-  const stand     = user?.nomor_stand || \"—\";
-  const namaUsaha = user?.nama_usaha  || \"Kios Saya\";
+  const stand     = user?.nomor_stand || "—";
+  const namaUsaha = user?.nama_usaha  || "Kios Saya";
   if (!show) return null;
 
   return (

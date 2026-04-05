@@ -3,7 +3,7 @@ import "../../assets/styles/promo.css";
 
 export default function EditPromoModal({ show, item, onClose, onSave, onToast }) {
   const user  = getUser();
-  const stand = user?.nomor_stand || \"—\";
+  const stand = user?.nomor_stand || "—";
   const [form, setForm] = useState({
     nama: "", tipe: "Persentase", nilai: "", mulai: "", akhir: "", status: "aktif", file_poster: null,
   });
