@@ -3,48 +3,51 @@ import { useNavigate } from "react-router-dom";
 import api, { setToken, setUser } from "../../services/api";
 
 export default function Login() {
-  const navigate = useNavigate();
-  const [form, setForm] = useState({ email: "", password: "" });
-  const [error, setError] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
+    const [form, setForm] = useState({ email: "", password: "" });
+    const [error, setError] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-    if (error) setError("");
-  };
+    const handleChange = (e) => {
+        setForm({ ...form, [e.target.name]: e.target.value });
+        if (error) setError("");
+    };
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    if (!form.email || !form.password) {
-      setError("Semua field harus diisi!");
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await api.post("/auth/login", {
-        email: form.email,
-        password: form.password,
-      });
-      // Simpan token & data user dari response backend
-      setToken(res.data.token);
-      setUser(res.data.user);
-      navigate("/");
-    } catch (err) {
-      if (err.status === 403) {
-        // Akun pending atau ditolak — arahkan ke halaman status
-        navigate("/status");
-      } else {
-        setError(err.message || "Email atau password salah!");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        if (!form.email || !form.password) {
+            setError("Semua field harus diisi!");
+            return;
+        }
+        setLoading(true);
+        try {
+            const res = await api.post("/auth/login", {
+                email: form.email,
+                password: form.password,
+            });
+            // Simpan token & data user dari response backend
+            setToken(res.data.token);
+            setUser(res.data.user);
+            navigate("/");
+        } catch (err) {
+            // FIX: gunakan httpStatus (bukan status) — lihat services/api.js
+            // httpStatus 403 → akun pending atau ditolak → arahkan ke halaman status
+            if (err.httpStatus === 403) {
+                // Simpan email agar Status.jsx bisa query status terbaru
+                localStorage.setItem("reg_email", form.email);
+                navigate("/status");
+            } else {
+                setError(err.message || "Email atau password salah!");
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  return (
-    <>
-      <style>{`
+    return (
+        <>
+            <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -344,151 +347,151 @@ export default function Login() {
         .event-detail { font-size: 11.5px; color: #4b7a5e; margin-top: 1px; }
       `}</style>
 
-      <div className="login-root">
+            <div className="login-root">
 
-        {/* ── LEFT ── */}
-        <div className="login-left">
-          <div className="blob blob-1" />
-          <div className="blob blob-2" />
-          <div className="blob blob-3" />
-          <div className="dot-grid" />
+                {/* ── LEFT ── */}
+                <div className="login-left">
+                    <div className="blob blob-1" />
+                    <div className="blob blob-2" />
+                    <div className="blob blob-3" />
+                    <div className="dot-grid" />
 
-          <div style={{ position: 'relative', zIndex: 1 }}>
-            <div className="left-badge">
-              <span />
-              Peken Banyumas 2026
-            </div>
+                    <div style={{ position: 'relative', zIndex: 1 }}>
+                        <div className="left-badge">
+                            <span />
+                            Peken Banyumas 2026
+                        </div>
 
-            <h1 className="left-heading">
-              Kelola kios UMKM<br />
-              kamu dengan <em>mudah</em>
-            </h1>
+                        <h1 className="left-heading">
+                            Kelola kios UMKM<br />
+                            kamu dengan <em>mudah</em>
+                        </h1>
 
-            <p className="left-sub">
-              Pantau stok, transaksi, dan pendapatan — semua dalam satu dashboard yang simpel dan intuitif.
-            </p>
+                        <p className="left-sub">
+                            Pantau stok, transaksi, dan pendapatan — semua dalam satu dashboard yang simpel dan intuitif.
+                        </p>
 
-            <div className="stat-row">
-              <div className="stat-card">
-                <div className="stat-num">320+</div>
-                <div className="stat-label">UMKM Terdaftar</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-num">3 Hari</div>
-                <div className="stat-label">22–24 Maret 2026</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-num">100%</div>
-                <div className="stat-label">Masuk Gratis</div>
-              </div>
-            </div>
-          </div>
-        </div>
+                        <div className="stat-row">
+                            <div className="stat-card">
+                                <div className="stat-num">320+</div>
+                                <div className="stat-label">UMKM Terdaftar</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-num">3 Hari</div>
+                                <div className="stat-label">22–24 Maret 2026</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-num">100%</div>
+                                <div className="stat-label">Masuk Gratis</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-        {/* ── RIGHT ── */}
-        <div className="login-right">
-          <div className="login-card">
+                {/* ── RIGHT ── */}
+                <div className="login-right">
+                    <div className="login-card">
 
-            <div className="logo-mark">
-              <svg viewBox="0 0 24 24">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-              </svg>
-            </div>
+                        <div className="logo-mark">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                                <polyline points="9 22 9 12 15 12 15 22" />
+                            </svg>
+                        </div>
 
-            <h2 className="card-title">Selamat datang!</h2>
-            <p className="card-sub">Masuk ke dashboard UMKM Anda</p>
+                        <h2 className="card-title">Selamat datang!</h2>
+                        <p className="card-sub">Masuk ke dashboard UMKM Anda</p>
 
-            {error && (
-              <div className="error-box">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
-                {error}
-              </div>
-            )}
+                        {error && (
+                            <div className="error-box">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                                </svg>
+                                {error}
+                            </div>
+                        )}
 
-            <form onSubmit={handleLogin}>
-              <div className="field">
-                <label className="field-label">Email</label>
-                <div className="input-wrap">
+                        <form onSubmit={handleLogin}>
+                            <div className="field">
+                                <label className="field-label">Email</label>
+                                <div className="input-wrap">
                   <span className="input-icon">
                     <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                   </span>
-                  <input
-                    type="email"
-                    name="email"
-                    value={form.email}
-                    onChange={handleChange}
-                    placeholder="nama@email.com"
-                    className="login-input"
-                    autoComplete="email"
-                  />
-                </div>
-              </div>
+                                    <input
+                                        type="email"
+                                        name="email"
+                                        value={form.email}
+                                        onChange={handleChange}
+                                        placeholder="nama@email.com"
+                                        className="login-input"
+                                        autoComplete="email"
+                                    />
+                                </div>
+                            </div>
 
-              <div className="field">
-                <label className="field-label">Password</label>
-                <div className="input-wrap">
+                            <div className="field">
+                                <label className="field-label">Password</label>
+                                <div className="input-wrap">
                   <span className="input-icon">
                     <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                   </span>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    name="password"
-                    value={form.password}
-                    onChange={handleChange}
-                    placeholder="Masukkan password"
-                    className="login-input has-toggle"
-                    autoComplete="current-password"
-                  />
-                  <button
-                    type="button"
-                    className="toggle-pw"
-                    onClick={() => setShowPassword(!showPassword)}
-                    tabIndex={-1}
-                  >
-                    {showPassword ? (
-                      <svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                    ) : (
-                      <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                    )}
-                  </button>
-                </div>
-              </div>
+                                    <input
+                                        type={showPassword ? "text" : "password"}
+                                        name="password"
+                                        value={form.password}
+                                        onChange={handleChange}
+                                        placeholder="Masukkan password"
+                                        className="login-input has-toggle"
+                                        autoComplete="current-password"
+                                    />
+                                    <button
+                                        type="button"
+                                        className="toggle-pw"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        tabIndex={-1}
+                                    >
+                                        {showPassword ? (
+                                            <svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                                        ) : (
+                                            <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
 
-              <div className="forgot-row">
-                <span className="forgot-link">Lupa password?</span>
-              </div>
+                            <div className="forgot-row">
+                                <span className="forgot-link">Lupa password?</span>
+                            </div>
 
-              <button type="submit" className="btn-submit" disabled={loading}>
-                {loading ? (
-                  <><div className="spinner" /> Memverifikasi...</>
-                ) : (
-                  <>Masuk ke Dashboard</>
-                )}
-              </button>
-            </form>
+                            <button type="submit" className="btn-submit" disabled={loading}>
+                                {loading ? (
+                                    <><div className="spinner" /> Memverifikasi...</>
+                                ) : (
+                                    <>Masuk ke Dashboard</>
+                                )}
+                            </button>
+                        </form>
 
-            <div className="divider">atau</div>
+                        <div className="divider">atau</div>
 
-            <p className="register-row">
-              Belum punya akun?{" "}
-              <span className="register-link" onClick={() => navigate("/register")}>
+                        <p className="register-row">
+                            Belum punya akun?{" "}
+                            <span className="register-link" onClick={() => navigate("/register")}>
                 Daftar sekarang
               </span>
-            </p>
+                        </p>
 
-            <div className="event-strip">
-              <div className="event-dot">🎪</div>
-              <div>
-                <div className="event-name">Peken Banyumas 2026</div>
-                <div className="event-detail">22–24 Maret · Alun-alun Banyumas · Masuk Gratis</div>
-              </div>
+                        <div className="event-strip">
+                            <div className="event-dot">🎪</div>
+                            <div>
+                                <div className="event-name">Peken Banyumas 2026</div>
+                                <div className="event-detail">22–24 Maret · Alun-alun Banyumas · Masuk Gratis</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </>
-  );
+        </>
+    );
 }
