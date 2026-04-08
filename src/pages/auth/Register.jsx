@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../../services/api";
+import api from "../../services/api.js";
 
 const STEPS = [
     { id: 1, label: "Data Usaha",  icon: "🏪" },
@@ -32,6 +32,33 @@ const ZONA_INFO = {
     C: { label: "Zona Kerajinan", color: "#0369a1", bg: "#f0f9ff", border: "#bae6fd" },
 };
 
+// ── Email validation helpers ───────────────────────────────────────────────
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+
+function validateEmailFormat(email) {
+    if (!email.trim()) return "Email wajib diisi";
+    if (!EMAIL_REGEX.test(email.trim())) return "Format email tidak valid (contoh: nama@domain.com)";
+    return "";
+}
+
+// ── Password strength ─────────────────────────────────────────────────────
+function getPasswordStrength(password) {
+    if (!password) return { level: 0, label: "", color: "#e5e7eb" };
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+    const map = [
+        { level: 0, label: "", color: "#e5e7eb" },
+        { level: 1, label: "Lemah", color: "#ef4444" },
+        { level: 2, label: "Cukup", color: "#f59e0b" },
+        { level: 3, label: "Kuat", color: "#10b981" },
+        { level: 4, label: "Sangat Kuat", color: "#2f855a" },
+    ];
+    return map[score] || map[0];
+}
+
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -39,7 +66,7 @@ const CSS = `
 .reg-root::before{content:'';position:fixed;inset:0;background-image:radial-gradient(circle at 20% 20%,rgba(47,133,90,.06) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(217,119,6,.06) 0%,transparent 50%);pointer-events:none}
 .reg-wrapper{width:100%;max-width:680px;animation:fadeUp .5s cubic-bezier(.22,1,.36,1) both}
 @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-.reg-brand{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+.reg-brand{display:flex;align-items:center;gap:12px;margin-bottom:28px;cursor:pointer}
 .reg-brand-mark{width:42px;height:42px;background:linear-gradient(135deg,#2f855a,#48bb78);border-radius:12px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(47,133,90,.3);font-size:18px}
 .reg-brand-name{font-family:'Lora',serif;font-size:18px;font-weight:700;color:#1a2e1f}
 .reg-brand-sub{font-size:12px;color:#6b7280;margin-top:1px}
@@ -63,12 +90,21 @@ const CSS = `
 .field{margin-bottom:20px}
 .field-label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:7px}
 .field-label span{color:#ef4444;margin-left:2px}
+.input-wrap{position:relative}
 .reg-input,.reg-select,.reg-textarea{width:100%;padding:12px 16px;border:1.5px solid #e5e7eb;border-radius:12px;font-size:14px;font-family:'DM Sans',sans-serif;background:#fafafa;color:#1a2e1f;transition:border-color .2s,background .2s,box-shadow .2s;outline:none;-webkit-appearance:none}
 .reg-input::placeholder,.reg-textarea::placeholder{color:#b0b7c3}
 .reg-input:focus,.reg-select:focus,.reg-textarea:focus{border-color:#2f855a;background:#fff;box-shadow:0 0 0 3px rgba(47,133,90,.1)}
 .reg-input.err,.reg-select.err,.reg-textarea.err{border-color:#ef4444;background:#fff8f8}
+.reg-input.ok{border-color:#10b981;background:#f0fdf4}
+.reg-input.checking{border-color:#f59e0b;background:#fffbeb}
 .reg-textarea{resize:vertical;min-height:90px}
 .err-msg{display:flex;align-items:center;gap:5px;margin-top:5px;font-size:12px;color:#ef4444;font-weight:500}
+.ok-msg{display:flex;align-items:center;gap:5px;margin-top:5px;font-size:12px;color:#059669;font-weight:500}
+.info-msg{display:flex;align-items:center;gap:5px;margin-top:5px;font-size:12px;color:#d97706;font-weight:500}
+.pw-strength{margin-top:8px}
+.pw-strength-bars{display:flex;gap:4px;margin-bottom:4px}
+.pw-bar{height:3px;flex:1;border-radius:99px;background:#e5e7eb;transition:background .3s}
+.pw-label{font-size:11px;font-weight:600}
 .upload-zone{border:2px dashed #d1d5db;border-radius:14px;padding:24px;text-align:center;background:#fafafa;transition:border-color .2s,background .2s;cursor:pointer;display:block}
 .upload-zone:hover{border-color:#2f855a;background:#f0fdf4}
 .upload-zone.uploaded{border-color:#2f855a;background:#f0fdf4}
@@ -112,6 +148,7 @@ const CSS = `
 .btn-back:hover{border-color:#9ca3af;background:#f9fafb}
 .btn-next{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;background:linear-gradient(135deg,#276749,#2f855a);color:white;border:none;border-radius:12px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .2s;box-shadow:0 4px 14px rgba(47,133,90,.35);margin-left:auto}
 .btn-next:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(47,133,90,.4)}
+.btn-next:disabled{opacity:.55;cursor:not-allowed;transform:none}
 .btn-submit{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;background:linear-gradient(135deg,#15803d,#2f855a);color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .2s;box-shadow:0 6px 20px rgba(47,133,90,.4);margin-left:auto}
 .btn-submit:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(47,133,90,.45)}
 .btn-submit:disabled{opacity:.6;cursor:not-allowed;transform:none}
@@ -119,50 +156,99 @@ const CSS = `
 `;
 
 export default function Register() {
-    const navigate = useNavigate();
+    const navigate  = useNavigate();
     const [step, setStep]             = useState(1);
     const [errors, setErrors]         = useState({});
     const [submitting, setSubmitting] = useState(false);
     const [apiError, setApiError]     = useState("");
-    // FIX: state untuk kios yang sudah terpakai dari API real-time
+
+    // Email check state
+    const [emailStatus, setEmailStatus] = useState("idle"); // idle | checking | available | taken | invalid
+    const debounceTimer = useRef(null);
+
     const [occupiedStands, setOccupiedStands] = useState([]);
     const [kiosLoading, setKiosLoading]       = useState(false);
-    const [formData, setFormData]     = useState({
+
+    const [formData, setFormData] = useState({
         email: "", password: "", konfirmasiPassword: "",
+        namaPemilik: "",
         namaUsaha: "", alamat: "", kategori: "", deskripsi: "",
         ktp: null, nib: null,
         setuju: false, kios: null,
     });
 
-    // FIX: fetch stand terpakai dari backend saat masuk step 4
+    // ── Debounced email availability check ─────────────────────────────────
+    const checkEmailAvailability = useCallback((email) => {
+        const formatErr = validateEmailFormat(email);
+        if (formatErr) {
+            setEmailStatus("invalid");
+            return;
+        }
+        setEmailStatus("checking");
+        clearTimeout(debounceTimer.current);
+        debounceTimer.current = setTimeout(async () => {
+            try {
+                const API = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
+                const res = await fetch(`${API}/public/check-email?email=${encodeURIComponent(email.trim())}`);
+                const data = await res.json();
+                setEmailStatus(data.available ? "available" : "taken");
+            } catch {
+                setEmailStatus("idle"); // network error — silent, validate on submit
+            }
+        }, 600);
+    }, []);
+
+    // ── Kios fetch ──────────────────────────────────────────────────────────
     useEffect(() => {
         if (step !== 4) return;
         setKiosLoading(true);
-        // Endpoint publik, tidak perlu token
-        fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000/api"}/public/kios-tersedia`)
+        const API = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
+        fetch(`${API}/public/kios-tersedia`)
             .then(r => r.json())
             .then(res => setOccupiedStands(res.data || []))
-            .catch(() => {}) // silently fail — frontend tetap bisa pilih kios
+            .catch(() => {})
             .finally(() => setKiosLoading(false));
     }, [step]);
 
     const handleChange = (e) => {
         const { name, value, type, checked, files } = e.target;
-        setFormData({ ...formData, [name]: type === "checkbox" ? checked : type === "file" ? files[0] : value });
-        if (errors[name]) setErrors({ ...errors, [name]: "" });
+        const newValue = type === "checkbox" ? checked : type === "file" ? files[0] : value;
+        setFormData(prev => ({ ...prev, [name]: newValue }));
+        if (errors[name]) setErrors(prev => ({ ...prev, [name]: "" }));
         if (apiError) setApiError("");
+
+        // Email-specific handling
+        if (name === "email") {
+            if (!value.trim()) {
+                setEmailStatus("idle");
+                clearTimeout(debounceTimer.current);
+            } else {
+                checkEmailAvailability(value);
+            }
+        }
     };
+
+    const pwStrength = getPasswordStrength(formData.password);
 
     const validate = () => {
         const e = {};
         if (step === 1) {
-            if (!formData.namaUsaha.trim()) e.namaUsaha = "Nama usaha wajib diisi";
-            if (!formData.alamat.trim())    e.alamat    = "Alamat wajib diisi";
-            if (!formData.kategori)         e.kategori  = "Pilih kategori usaha";
-            if (!formData.email.trim())     e.email     = "Email wajib diisi";
-            if (!formData.password)         e.password  = "Password wajib diisi";
-            if (formData.password && formData.password.length < 6)
-                e.password  = "Password minimal 6 karakter";
+            if (!formData.namaPemilik.trim()) e.namaPemilik = "Nama pemilik wajib diisi";
+            if (!formData.namaUsaha.trim())   e.namaUsaha   = "Nama usaha wajib diisi";
+            if (!formData.alamat.trim())      e.alamat      = "Alamat wajib diisi";
+            if (!formData.kategori)           e.kategori    = "Pilih kategori usaha";
+
+            const emailErr = validateEmailFormat(formData.email);
+            if (emailErr) {
+                e.email = emailErr;
+            } else if (emailStatus === "taken") {
+                e.email = "Email sudah terdaftar. Gunakan email lain atau login.";
+            } else if (emailStatus === "checking") {
+                e.email = "Sedang memeriksa email, tunggu sebentar...";
+            }
+
+            if (!formData.password)                          e.password = "Password wajib diisi";
+            else if (formData.password.length < 6)           e.password = "Password minimal 6 karakter";
             if (formData.password !== formData.konfirmasiPassword)
                 e.konfirmasiPassword = "Konfirmasi password tidak cocok";
         }
@@ -176,30 +262,28 @@ export default function Register() {
         return Object.keys(e).length === 0;
     };
 
-    const nextStep = () => { if (validate()) setStep((p) => p + 1); };
-    const prevStep = () => setStep((p) => p - 1);
+    const nextStep = () => { if (validate()) setStep(p => p + 1); };
+    const prevStep = () => setStep(p => p - 1);
 
     const handleSubmit = async () => {
         setSubmitting(true);
         setApiError("");
         try {
-            // Buat FormData untuk multipart/form-data (ada file upload)
             const fd = new FormData();
-            fd.append("nama_usaha",   formData.namaUsaha);
-            fd.append("alamat",       formData.alamat);
-            fd.append("kategori",     formData.kategori);
-            fd.append("deskripsi",    formData.deskripsi || "");
-            fd.append("email",        formData.email);
-            fd.append("password",     formData.password);
-            fd.append("kios_id",      formData.kios.id);
-            fd.append("file_ktp",     formData.ktp);
-            fd.append("file_nib",     formData.nib);
-            fd.append("nama_pemilik", formData.namaUsaha);
-            fd.append("setuju",       String(formData.setuju));
+            fd.append("nama_pemilik",  formData.namaPemilik);
+            fd.append("nama_usaha",    formData.namaUsaha);
+            fd.append("alamat",        formData.alamat);
+            fd.append("kategori",      formData.kategori);
+            fd.append("deskripsi",     formData.deskripsi || "");
+            fd.append("email",         formData.email.trim().toLowerCase());
+            fd.append("password",      formData.password);
+            fd.append("kios_id",       formData.kios.id);
+            fd.append("file_ktp",      formData.ktp);
+            fd.append("file_nib",      formData.nib);
+            fd.append("setuju",        String(formData.setuju));
 
             await api.postForm("/auth/register", fd);
-            // FIX: simpan email ke localStorage agar Status.jsx bisa query /auth/status?email=...
-            localStorage.setItem("reg_email", formData.email);
+            localStorage.setItem("reg_email", formData.email.trim().toLowerCase());
             navigate("/status");
         } catch (err) {
             setApiError(err.message || "Pendaftaran gagal. Silakan coba lagi.");
@@ -208,7 +292,16 @@ export default function Register() {
         }
     };
 
-    const zonas = [...new Set(KIOS_DATA.map((k) => k.zona))];
+    const zonas = [...new Set(KIOS_DATA.map(k => k.zona))];
+
+    // Helper: email field status indicator
+    const emailInputClass = () => {
+        if (errors.email) return "reg-input err";
+        if (emailStatus === "available") return "reg-input ok";
+        if (emailStatus === "checking")  return "reg-input checking";
+        if (emailStatus === "taken")     return "reg-input err";
+        return "reg-input";
+    };
 
     return (
         <>
@@ -217,7 +310,7 @@ export default function Register() {
                 <div className="reg-wrapper">
 
                     {/* Brand */}
-                    <div className="reg-brand">
+                    <div className="reg-brand" onClick={() => navigate("/")}>
                         <div className="reg-brand-mark">🎪</div>
                         <div>
                             <div className="reg-brand-name">Peken Banyumas 2026</div>
@@ -227,7 +320,7 @@ export default function Register() {
 
                     {/* Stepper */}
                     <div className="stepper">
-                        {STEPS.map((s) => (
+                        {STEPS.map(s => (
                             <div key={s.id} className={`step-item ${step > s.id ? "done" : ""} ${step === s.id ? "active" : ""}`}>
                                 <div className="step-circle">{step > s.id ? "✓" : s.id}</div>
                                 <div className="step-label">{s.label}</div>
@@ -242,16 +335,21 @@ export default function Register() {
 
                     {/* Card */}
                     <div className="reg-card" key={step}>
-
-                        {/* API Error */}
                         {apiError && <div className="api-error">⚠ {apiError}</div>}
 
-                        {/* STEP 1 */}
+                        {/* STEP 1 — Data Usaha & Akun */}
                         {step === 1 && (
                             <>
                                 <div className="step-chip">🏪 Langkah 1 dari 5</div>
                                 <h2 className="step-title">Data Usaha & Akun</h2>
                                 <p className="step-desc">Isi data usaha dan buat akun untuk login ke dashboard</p>
+
+                                <div className="field">
+                                    <label className="field-label">Nama Pemilik <span>*</span></label>
+                                    <input type="text" name="namaPemilik" value={formData.namaPemilik} onChange={handleChange}
+                                           placeholder="Nama lengkap pemilik usaha" className={`reg-input${errors.namaPemilik ? " err" : ""}`} />
+                                    {errors.namaPemilik && <div className="err-msg">⚠ {errors.namaPemilik}</div>}
+                                </div>
 
                                 <div className="field">
                                     <label className="field-label">Nama Usaha <span>*</span></label>
@@ -286,22 +384,56 @@ export default function Register() {
                                               placeholder="Ceritakan produk atau layanan yang kamu tawarkan..." className="reg-textarea" />
                                 </div>
 
-                                {/* Divider akun */}
                                 <div style={{ borderTop: "1.5px solid #f0f0f0", margin: "8px 0 20px", paddingTop: 20 }}>
                                     <p style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 16 }}>🔑 Data Akun (untuk login)</p>
                                 </div>
 
+                                {/* Email dengan real-time validation */}
                                 <div className="field">
                                     <label className="field-label">Email <span>*</span></label>
-                                    <input type="email" name="email" value={formData.email} onChange={handleChange}
-                                           placeholder="email@contoh.com" className={`reg-input${errors.email ? " err" : ""}`} />
+                                    <div className="input-wrap">
+                                        <input type="email" name="email" value={formData.email} onChange={handleChange}
+                                               placeholder="email@contoh.com" className={emailInputClass()} />
+                                    </div>
                                     {errors.email && <div className="err-msg">⚠ {errors.email}</div>}
+                                    {!errors.email && emailStatus === "checking" && (
+                                        <div className="info-msg">⏳ Memeriksa ketersediaan email...</div>
+                                    )}
+                                    {!errors.email && emailStatus === "available" && (
+                                        <div className="ok-msg">✓ Email tersedia</div>
+                                    )}
+                                    {!errors.email && emailStatus === "taken" && (
+                                        <div className="err-msg">
+                                            ⚠ Email sudah terdaftar.{" "}
+                                            <span onClick={() => navigate("/login")}
+                                                  style={{ color: "#2f855a", cursor: "pointer", textDecoration: "underline" }}>
+                                                Login di sini
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
 
+                                {/* Password dengan strength indicator */}
                                 <div className="field">
                                     <label className="field-label">Password <span>*</span></label>
                                     <input type="password" name="password" value={formData.password} onChange={handleChange}
                                            placeholder="Minimal 6 karakter" className={`reg-input${errors.password ? " err" : ""}`} />
+                                    {formData.password && (
+                                        <div className="pw-strength">
+                                            <div className="pw-strength-bars">
+                                                {[1,2,3,4].map(i => (
+                                                    <div key={i} className="pw-bar"
+                                                         style={{ background: i <= pwStrength.level ? pwStrength.color : "#e5e7eb" }} />
+                                                ))}
+                                            </div>
+                                            {pwStrength.label && (
+                                                <div className="pw-label" style={{ color: pwStrength.color }}>
+                                                    Kekuatan: {pwStrength.label}
+                                                    {pwStrength.level < 3 && <span style={{ color: "#9ca3af", fontWeight: 400 }}> — tambahkan huruf kapital, angka, atau simbol</span>}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                     {errors.password && <div className="err-msg">⚠ {errors.password}</div>}
                                 </div>
 
@@ -309,18 +441,20 @@ export default function Register() {
                                     <label className="field-label">Konfirmasi Password <span>*</span></label>
                                     <input type="password" name="konfirmasiPassword" value={formData.konfirmasiPassword} onChange={handleChange}
                                            placeholder="Ulangi password" className={`reg-input${errors.konfirmasiPassword ? " err" : ""}`} />
+                                    {!errors.konfirmasiPassword && formData.konfirmasiPassword && formData.password === formData.konfirmasiPassword && (
+                                        <div className="ok-msg">✓ Password cocok</div>
+                                    )}
                                     {errors.konfirmasiPassword && <div className="err-msg">⚠ {errors.konfirmasiPassword}</div>}
                                 </div>
                             </>
                         )}
 
-                        {/* STEP 2 */}
+                        {/* STEP 2 — Dokumen */}
                         {step === 2 && (
                             <>
                                 <div className="step-chip">📄 Langkah 2 dari 5</div>
                                 <h2 className="step-title">Upload Dokumen</h2>
                                 <p className="step-desc">Dokumen diperlukan untuk verifikasi identitas dan legalitas usaha</p>
-
                                 {[
                                     { key: "ktp", label: "KTP Pemilik", desc: "Kartu Tanda Penduduk", emoji: "🪪" },
                                     { key: "nib", label: "NIB",         desc: "Nomor Induk Berusaha",  emoji: "📑" },
@@ -350,13 +484,12 @@ export default function Register() {
                             </>
                         )}
 
-                        {/* STEP 3 */}
+                        {/* STEP 3 — S&K */}
                         {step === 3 && (
                             <>
                                 <div className="step-chip">📋 Langkah 3 dari 5</div>
                                 <h2 className="step-title">Syarat & Ketentuan</h2>
                                 <p className="step-desc">Baca dan setujui ketentuan sebelum melanjutkan pendaftaran</p>
-
                                 <div className="terms-box">
                                     <p style={{ marginBottom: 12, fontWeight: 600, color: "#1a2e1f" }}>Ketentuan Pendaftaran UMKM — Peken Banyumas 2026</p>
                                     <ul>
@@ -370,31 +503,29 @@ export default function Register() {
                                         <li>Pengelola berhak melakukan inspeksi kios sewaktu-waktu selama periode acara.</li>
                                     </ul>
                                 </div>
-
                                 <label
                                     className={`checkbox-row${formData.setuju ? " checked" : ""}${errors.setuju ? " err" : ""}`}
                                     onClick={() => {
-                                        setFormData({ ...formData, setuju: !formData.setuju });
-                                        if (errors.setuju) setErrors({ ...errors, setuju: "" });
+                                        setFormData(prev => ({ ...prev, setuju: !prev.setuju }));
+                                        if (errors.setuju) setErrors(prev => ({ ...prev, setuju: "" }));
                                     }}
                                 >
                                     <input type="checkbox" checked={formData.setuju} onChange={() => {}}
                                            style={{ width: 18, height: 18, accentColor: "#2f855a", flexShrink: 0, marginTop: 1, cursor: "pointer" }} />
                                     <span style={{ fontSize: 13.5, color: "#374151", fontWeight: 500, lineHeight: 1.5, cursor: "pointer" }}>
-                    Saya telah membaca dan <strong>menyetujui seluruh syarat & ketentuan</strong> yang berlaku
-                  </span>
+                                        Saya telah membaca dan <strong>menyetujui seluruh syarat & ketentuan</strong> yang berlaku
+                                    </span>
                                 </label>
                                 {errors.setuju && <div className="err-msg" style={{ marginTop: 8 }}>⚠ {errors.setuju}</div>}
                             </>
                         )}
 
-                        {/* STEP 4 */}
+                        {/* STEP 4 — Pilih Kios */}
                         {step === 4 && (
                             <>
                                 <div className="step-chip">🗺️ Langkah 4 dari 5</div>
                                 <h2 className="step-title">Pilih Kios</h2>
                                 <p className="step-desc">Pilih lokasi kios yang tersedia. Harga ditampilkan per bulan.</p>
-
                                 <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
                                     {[
                                         { label: "Tersedia", border: "#2f855a", bg: "#f0fdf4" },
@@ -408,19 +539,17 @@ export default function Register() {
                                     ))}
                                     {kiosLoading && <span style={{ fontSize: 12, color: "#9ca3af" }}>⏳ Memuat status kios...</span>}
                                 </div>
-
-                                {zonas.map((zona) => {
+                                {zonas.map(zona => {
                                     const info  = ZONA_INFO[zona];
-                                    const kiosZ = KIOS_DATA.filter((k) => k.zona === zona);
+                                    const kiosZ = KIOS_DATA.filter(k => k.zona === zona);
                                     return (
                                         <div className="zona-section" key={zona}>
-                      <span className="zona-badge" style={{ background: info.bg, color: info.color, border: `1px solid ${info.border}` }}>
-                        <span className="zona-dot" style={{ background: info.color }} />
-                        Zona {zona} — {info.label}
-                      </span>
+                                            <span className="zona-badge" style={{ background: info.bg, color: info.color, border: `1px solid ${info.border}` }}>
+                                                <span className="zona-dot" style={{ background: info.color }} />
+                                                Zona {zona} — {info.label}
+                                            </span>
                                             <div className="kios-grid">
-                                                {kiosZ.map((kios) => {
-                                                    // FIX: status real-time dari API, bukan hardcode
+                                                {kiosZ.map(kios => {
                                                     const isFull = occupiedStands.includes(kios.id);
                                                     const isSel  = formData.kios?.id === kios.id;
                                                     return (
@@ -428,8 +557,8 @@ export default function Register() {
                                                              className={`kios-card${isFull ? " kios-full" : ""}${isSel ? " kios-selected" : ""}`}
                                                              onClick={() => {
                                                                  if (isFull) return;
-                                                                 setFormData({ ...formData, kios });
-                                                                 if (errors.kios) setErrors({ ...errors, kios: "" });
+                                                                 setFormData(prev => ({ ...prev, kios }));
+                                                                 if (errors.kios) setErrors(prev => ({ ...prev, kios: "" }));
                                                              }}>
                                                             {isSel && <div className="kios-check">✓</div>}
                                                             <div className="kios-id">{kios.id}</div>
@@ -443,7 +572,6 @@ export default function Register() {
                                         </div>
                                     );
                                 })}
-
                                 {errors.kios && <div className="err-msg">⚠ {errors.kios}</div>}
                                 {formData.kios && (
                                     <div className="selected-banner">
@@ -459,17 +587,16 @@ export default function Register() {
                             </>
                         )}
 
-                        {/* STEP 5 */}
+                        {/* STEP 5 — Konfirmasi */}
                         {step === 5 && (
                             <>
                                 <div className="step-chip">✅ Langkah 5 dari 5</div>
                                 <h2 className="step-title">Konfirmasi Data</h2>
                                 <p className="step-desc">Periksa kembali sebelum mengirimkan pendaftaran</p>
-
                                 {[
                                     {
-                                        icon: "🏪", title: "DATA USAHA",
-                                        rows: [["Nama Usaha", formData.namaUsaha], ["Alamat", formData.alamat], ["Kategori", formData.kategori], ["Deskripsi", formData.deskripsi || "—"]],
+                                        icon: "👤", title: "DATA PEMILIK & USAHA",
+                                        rows: [["Nama Pemilik", formData.namaPemilik], ["Nama Usaha", formData.namaUsaha], ["Alamat", formData.alamat], ["Kategori", formData.kategori], ["Deskripsi", formData.deskripsi || "—"]],
                                     },
                                     {
                                         icon: "🔑", title: "DATA AKUN",
@@ -499,15 +626,12 @@ export default function Register() {
                                             {rows.map(([k, v]) => (
                                                 <div className="confirm-row" key={k}>
                                                     <span className="confirm-key">{k}</span>
-                                                    <span className="confirm-val" style={green ? { color: "#2f855a" } : {}}>
-                            {green ? `✓ ${v}` : v}
-                          </span>
+                                                    <span className="confirm-val" style={green ? { color: "#2f855a" } : {}}>{green ? `✓ ${v}` : v}</span>
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
                                 ))}
-
                                 <div style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 12, padding: "12px 16px", fontSize: 13, color: "#92400e", display: "flex", gap: 10 }}>
                                     <span style={{ flexShrink: 0 }}>💡</span>
                                     <span>Pendaftaran akan diproses oleh admin. Pantau status di halaman <strong>Status Pendaftaran</strong>.</span>
@@ -519,7 +643,11 @@ export default function Register() {
                         <div className="nav-row">
                             {step > 1 && <button className="btn-back" onClick={prevStep}>← Kembali</button>}
                             {step < 5
-                                ? <button className="btn-next" onClick={nextStep}>Lanjut →</button>
+                                ? <button className="btn-next"
+                                          disabled={step === 1 && emailStatus === "checking"}
+                                          onClick={nextStep}>
+                                    Lanjut →
+                                </button>
                                 : <button className="btn-submit" onClick={handleSubmit} disabled={submitting}>
                                     {submitting ? "⏳ Mendaftar..." : "✅ Kirim Pendaftaran"}
                                 </button>
@@ -530,8 +658,8 @@ export default function Register() {
                     <p style={{ textAlign: "center", marginTop: 24, fontSize: 13.5, color: "#6b7280" }}>
                         Sudah punya akun?{" "}
                         <span onClick={() => navigate("/login")} style={{ color: "#2f855a", fontWeight: 600, cursor: "pointer" }}>
-              Masuk di sini
-            </span>
+                            Masuk di sini
+                        </span>
                     </p>
                 </div>
             </div>

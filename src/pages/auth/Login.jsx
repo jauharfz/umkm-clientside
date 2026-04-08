@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api, { setToken, setUser } from "../../services/api";
+import api, { setToken, setUser } from "../../services/api.js";
 
 export default function Login() {
     const navigate = useNavigate();
@@ -29,7 +29,7 @@ export default function Login() {
             // Simpan token & data user dari response backend
             setToken(res.data.token);
             setUser(res.data.user);
-            navigate("/");
+            navigate("/dashboard");   // FIX: "/" adalah CompanyProfile, bukan dashboard
         } catch (err) {
             // FIX: gunakan httpStatus (bukan status) — lihat services/api.js
             // httpStatus 403 → akun pending atau ditolak → arahkan ke halaman status
