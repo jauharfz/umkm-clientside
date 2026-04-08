@@ -14,6 +14,7 @@ import Riwayat from "./pages/Riwayat";
 import Pengaturan from "./pages/Pengaturan";
 import Profile from "./pages/Profile";
 import Notifikasi from "./pages/Notifikasi";
+import VerifikasiMember from "./pages/VerifikasiMember";  // ← NEW
 import { getToken } from "./services/api";
 
 /**
@@ -84,6 +85,7 @@ function App() {
                     <Route path="riwayat" element={<Riwayat />} />
                     <Route path="pengaturan" element={<Pengaturan />} />
                     <Route path="profile" element={<Profile />} />
+                    <Route path="verifikasi-member" element={<VerifikasiMember />} />  {/* ← NEW */}
                 </Route>
 
                 {/* Catch-all */}
