@@ -27,14 +27,32 @@ export default function Sidebar({ open, setOpen, stokKritis = 0 }) {
         .slice(0, 2)
         .toUpperCase();
 
+    // ── PERBAIKAN UTAMA: semua path pakai /dashboard/... ─────────────────────
+    // Sebelumnya path seperti "/" dan "/stok" tidak cocok dengan
+    // nested routes di App.jsx (semua berada di bawah /dashboard/*),
+    // sehingga navigasi selalu jatuh ke catch-all dan redirect balik ke /dashboard.
     const menu = [
-        { path: "/",                  label: "Dashboard",         icon: <Home size={18} /> },
-        { path: "/stok",              label: "Manajemen Stok",    icon: <Box size={18} />,       badge: stokKritis || null },
-        { path: "/kas",               label: "Buku Kas",          icon: <Book size={18} /> },
-        { path: "/promo",             label: "Promo & Diskon",    icon: <Tag size={18} /> },
-        { path: "/verifikasi-member", label: "Verifikasi Member", icon: <ShieldCheck size={18} /> },  // ← NEW
-        { path: "/riwayat",           label: "Riwayat",           icon: <FileText size={18} /> },
+        { path: "/dashboard",                  label: "Dashboard",         icon: <Home size={18} /> },
+        { path: "/dashboard/stok",             label: "Manajemen Stok",    icon: <Box size={18} />, badge: stokKritis || null },
+        { path: "/dashboard/kas",              label: "Buku Kas",          icon: <Book size={18} /> },
+        { path: "/dashboard/promo",            label: "Promo & Diskon",    icon: <Tag size={18} /> },
+        { path: "/dashboard/verifikasi-member",label: "Verifikasi Member", icon: <ShieldCheck size={18} /> },
+        { path: "/dashboard/riwayat",          label: "Riwayat",           icon: <FileText size={18} /> },
     ];
+
+    // Cek apakah route aktif — pakai startsWith agar nested path juga ter-highlight
+    const isActive = (path) => {
+        if (path === "/dashboard") {
+            // Dashboard hanya aktif jika persis /dashboard, bukan /dashboard/stok dsb.
+            return location.pathname === "/dashboard";
+        }
+        return location.pathname.startsWith(path);
+    };
+
+    const handleNav = (path) => {
+        navigate(path);
+        setOpen(false);
+    };
 
     return (
         <>
@@ -67,8 +85,8 @@ export default function Sidebar({ open, setOpen, stokKritis = 0 }) {
                         {menu.map((item) => (
                             <div
                                 key={item.path}
-                                className={`si ${location.pathname === item.path ? "active" : ""}`}
-                                onClick={() => { navigate(item.path); setOpen(false); }}
+                                className={`si ${isActive(item.path) ? "active" : ""}`}
+                                onClick={() => handleNav(item.path)}
                             >
                                 <span className="icon">{item.icon}</span>
                                 <span className="si-label">{item.label}</span>
@@ -80,15 +98,15 @@ export default function Sidebar({ open, setOpen, stokKritis = 0 }) {
                     <div className="sb-akun">
                         <p className="lbl">AKUN</p>
                         <div
-                            className={`si ${location.pathname === "/pengaturan" ? "active" : ""}`}
-                            onClick={() => { navigate("/pengaturan"); setOpen(false); }}
+                            className={`si ${isActive("/dashboard/pengaturan") ? "active" : ""}`}
+                            onClick={() => handleNav("/dashboard/pengaturan")}
                         >
                             <span className="icon"><Settings size={18} /></span>
                             <span className="si-label">Pengaturan</span>
                         </div>
                         <div
-                            className={`si ${location.pathname === "/profile" ? "active" : ""}`}
-                            onClick={() => { navigate("/profile"); setOpen(false); }}
+                            className={`si ${isActive("/dashboard/profile") ? "active" : ""}`}
+                            onClick={() => handleNav("/dashboard/profile")}
                         >
                             <span className="icon"><User size={18} /></span>
                             <span className="si-label">Profile</span>

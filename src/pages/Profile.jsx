@@ -1,40 +1,88 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ConfirmLogoutModal from "../components/modals/ConfirmLogoutModal";
 import "../assets/styles/profile.css";
-import api, { getUser } from "../services/api";
+import api, { getUser, setUser } from "../services/api";
+
+function normalizeProfile(payload, fallbackUser) {
+  const stats = payload?.stats || {};
+  const namaPemilik = payload?.nama_pemilik || fallbackUser?.nama_pemilik || "Pengguna";
+  const namaUsaha = payload?.nama_usaha || fallbackUser?.nama_usaha || "Kios Saya";
+  const stand = payload?.nomor_stand || fallbackUser?.nomor_stand || "—";
+  const zona = payload?.zona || fallbackUser?.zona || "—";
+  const kategori = payload?.kategori || fallbackUser?.kategori || "—";
+  const statusPendaftaran = payload?.status_pendaftaran || fallbackUser?.status_pendaftaran || "pending";
+
+  return {
+    nama: namaPemilik,
+    role: "Pemilik Kios",
+    kios: namaUsaha,
+    stand,
+    zona,
+    kategori,
+    status: statusPendaftaran === "approved" ? "Aktif" : statusPendaftaran,
+    inisial: namaPemilik
+      .split(" ")
+      .filter(Boolean)
+      .map((word) => word[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "U",
+    stats: {
+      produk: stats?.total_produk ?? 0,
+      transaksi: stats?.total_transaksi ?? 0,
+      rating: "—",
+    },
+  };
+}
 
 export default function Profile() {
   const navigate = useNavigate();
   const [showLogout, setShowLogout] = useState(false);
-  const [user, setUser]   = useState(getUser()); // tampilkan cached dulu
   const [loading, setLoading] = useState(true);
+  const cachedUser = useMemo(() => getUser(), []);
+  const [user, setUserState] = useState(normalizeProfile(null, cachedUser));
 
   useEffect(() => {
-    api.get("/profil")
-      .then(res => {
-        const data = res.data || res;
-        setUser({
-          nama:     data.nama_pemilik || data.nama,
-          role:     "Pemilik Kios",
-          kios:     data.nama_usaha,
-          stand:    data.nomor_stand,
-          zona:     data.zona,
-          kategori: data.kategori,
-          status:   data.status_pendaftaran === "approved" ? "Aktif" : data.status_pendaftaran,
-          inisial:  (data.nama_pemilik || data.nama || "?").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase(),
-          stats:    {
-            produk:     data.total_produk    ?? 0,
-            transaksi:  data.total_transaksi ?? 0,
-            rating:     data.rating          ?? "—",
-          },
-        });
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    let mounted = true;
 
-  if (!user) return <p style={{ padding: 32, color: "#9ca3af" }}>Memuat profil...</p>;
+    api
+      .get("/profil")
+      .then((res) => {
+        if (!mounted) return;
+        const payload = res?.data ?? {};
+        setUserState(normalizeProfile(payload, cachedUser));
+
+        if (cachedUser) {
+          setUser({
+            ...cachedUser,
+            nama_pemilik: payload?.nama_pemilik || cachedUser.nama_pemilik,
+            nama_usaha: payload?.nama_usaha || cachedUser.nama_usaha,
+            alamat: payload?.alamat || cachedUser.alamat,
+            kategori: payload?.kategori || cachedUser.kategori,
+            deskripsi: payload?.deskripsi || cachedUser.deskripsi,
+            nomor_stand: payload?.nomor_stand || cachedUser.nomor_stand,
+            zona: payload?.zona || cachedUser.zona,
+            status_pendaftaran: payload?.status_pendaftaran || cachedUser.status_pendaftaran,
+          });
+        }
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setUserState(normalizeProfile(null, cachedUser));
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [cachedUser]);
+
+  if (loading && !user) {
+    return <p style={{ padding: 32, color: "#9ca3af" }}>Memuat profil...</p>;
+  }
 
   return (
     <div className="pf-page">
@@ -93,19 +141,11 @@ export default function Profile() {
       </div>
 
       <div className="pf-actions">
-        <button className="pf-btn-settings" onClick={() => navigate("/pengaturan")}>
-          ⚙️ Pengaturan Akun
-        </button>
-        <button className="pf-btn-logout" onClick={() => setShowLogout(true)}>
-          🚪 Logout
-        </button>
+        <button className="pf-btn-settings" onClick={() => navigate("/dashboard/pengaturan")}>⚙️ Pengaturan Akun</button>
+        <button className="pf-btn-logout" onClick={() => setShowLogout(true)}>🚪 Logout</button>
       </div>
 
-      <ConfirmLogoutModal
-        show={showLogout}
-        onClose={() => setShowLogout(false)}
-        userName={user.nama}
-      />
+      <ConfirmLogoutModal show={showLogout} onClose={() => setShowLogout(false)} userName={user.nama} />
     </div>
   );
 }

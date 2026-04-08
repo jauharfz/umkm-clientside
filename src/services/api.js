@@ -1,80 +1,151 @@
-// ── API Client untuk UMKM Backend (FastAPI) ─────────────────────────────────
-// Base URL bisa diubah lewat env variable VITE_API_URL
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+const BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000/api").replace(/\/$/, "");
+const DEFAULT_TIMEOUT_MS = 30000;
 
 export function getToken() {
-    return localStorage.getItem("token");
+  return localStorage.getItem("token");
 }
 
 export function setToken(token) {
-    localStorage.setItem("token", token);
+  localStorage.setItem("token", token);
 }
 
 export function clearAuth() {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
 }
 
 export function getUser() {
-    try {
-        return JSON.parse(localStorage.getItem("user") || "null");
-    } catch {
-        return null;
-    }
+  try {
+    return JSON.parse(localStorage.getItem("user") || "null");
+  } catch {
+    return null;
+  }
 }
 
 export function setUser(user) {
-    localStorage.setItem("user", JSON.stringify(user));
+  localStorage.setItem("user", JSON.stringify(user));
 }
 
-// ── Internal request helper ───────────────────────────────────────────────────
+function buildUrl(path, params) {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const url = new URL(`${BASE_URL}${normalizedPath}`);
+
+  if (params && typeof params === "object") {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === "") return;
+      if (Array.isArray(value)) {
+        value.forEach((item) => {
+          if (item !== undefined && item !== null && item !== "") {
+            url.searchParams.append(key, String(item));
+          }
+        });
+        return;
+      }
+      url.searchParams.set(key, String(value));
+    });
+  }
+
+  return url.toString();
+}
+
 async function request(path, options = {}) {
-    const token = getToken();
-    const headers = {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...options.headers,
-    };
+  const {
+    method = "GET",
+    params,
+    body,
+    headers: customHeaders = {},
+    timeout = DEFAULT_TIMEOUT_MS,
+    signal,
+  } = options;
 
-    // Jangan set Content-Type kalau FormData (browser set sendiri beserta boundary)
-    if (!(options.body instanceof FormData)) {
-        headers["Content-Type"] = "application/json";
+  const token = getToken();
+  const headers = {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...customHeaders,
+  };
+
+  const isFormData = body instanceof FormData;
+  if (!isFormData && body !== undefined && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  if (signal) {
+    signal.addEventListener("abort", () => controller.abort(), { once: true });
+  }
+
+  let response;
+  try {
+    response = await fetch(buildUrl(path, params), {
+      method,
+      headers,
+      body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    clearTimeout(timeoutId);
+
+    if (error?.name === "AbortError") {
+      const err = new Error("Permintaan ke server terlalu lama. Silakan coba lagi.");
+      err.httpStatus = 0;
+      err.isTimeout = true;
+      throw err;
     }
 
-    const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+    const err = new Error("Tidak dapat terhubung ke server. Periksa koneksi atau coba lagi beberapa saat.");
+    err.httpStatus = 0;
+    err.isNetworkError = true;
+    throw err;
+  }
 
-    // 204 No Content
-    if (res.status === 204) return null;
+  clearTimeout(timeoutId);
 
-    const data = await res.json();
+  if (response.status === 401 && !path.includes("/auth/login")) {
+    clearAuth();
+    window.dispatchEvent(new CustomEvent("auth:logout", { detail: { reason: "token_expired" } }));
+    window.location.href = "/login";
+    return null;
+  }
 
-    if (!res.ok) {
-        // FIX: gunakan `httpStatus` agar tidak tertimpa key `status` dari body FastAPI.
-        // FastAPI mengembalikan {"detail": {"status": "error", "message": "..."}}
-        // sehingga spread `...data` tidak menimpa, tapi kita tetap pakai `httpStatus`
-        // sebagai konvensi yang eksplisit dan aman dari perubahan response body apapun.
-        const err = { httpStatus: res.status, ...data };
-        // Ambil message dari berbagai kemungkinan struktur respons FastAPI
-        err.message =
-            data?.detail?.message ||   // {"detail": {"message": "..."}}
-            data?.message ||           // {"message": "..."}
-            data?.detail ||            // {"detail": "string langsung"}
-            "Terjadi kesalahan pada server.";
-        throw err;
+  if (response.status === 204) return null;
+
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    if (!response.ok) {
+      const err = new Error("Respons server tidak valid.");
+      err.httpStatus = response.status;
+      throw err;
     }
+    return null;
+  }
 
-    return data;
+  if (!response.ok) {
+    const err = new Error(
+      payload?.detail?.message ||
+      payload?.message ||
+      payload?.detail ||
+      "Terjadi kesalahan pada server."
+    );
+    err.httpStatus = response.status;
+    err.payload = payload;
+    throw err;
+  }
+
+  return payload;
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
 const api = {
-    get:     (path)          => request(path),
-    post:    (path, body)    => request(path, { method: "POST",   body: JSON.stringify(body) }),
-    put:     (path, body)    => request(path, { method: "PUT",    body: JSON.stringify(body) }),
-    patch:   (path, body)    => request(path, { method: "PATCH",  body: JSON.stringify(body) }),
-    delete:  (path)          => request(path, { method: "DELETE" }),
-    // Untuk upload file (multipart/form-data)
-    postForm: (path, formData) => request(path, { method: "POST", body: formData }),
-    putForm:  (path, formData) => request(path, { method: "PUT",  body: formData }),
+  get: (path, options = {}) => request(path, { ...options, method: "GET" }),
+  post: (path, body, options = {}) => request(path, { ...options, method: "POST", body }),
+  put: (path, body, options = {}) => request(path, { ...options, method: "PUT", body }),
+  patch: (path, body, options = {}) => request(path, { ...options, method: "PATCH", body }),
+  delete: (path, options = {}) => request(path, { ...options, method: "DELETE" }),
+  postForm: (path, formData, options = {}) => request(path, { ...options, method: "POST", body: formData }),
+  putForm: (path, formData, options = {}) => request(path, { ...options, method: "PUT", body: formData }),
 };
 
 export default api;
