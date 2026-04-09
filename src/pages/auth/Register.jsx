@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api.js";
 
@@ -162,11 +162,8 @@ export default function Register() {
     const [submitting, setSubmitting] = useState(false);
     const [apiError, setApiError]     = useState("");
 
-    // Email check state
-    const [emailStatus, setEmailStatus] = useState("idle"); // idle | checking | available | taken | invalid
-    const debounceTimer = useRef(null);
-
     const [occupiedStands, setOccupiedStands] = useState([]);
+    const [emailStatus, setEmailStatus] = useState("idle"); // idle | checking | available | taken
     const [kiosLoading, setKiosLoading]       = useState(false);
 
     const [formData, setFormData] = useState({
@@ -177,25 +174,19 @@ export default function Register() {
         setuju: false, kios: null,
     });
 
-    // ── Debounced email availability check ─────────────────────────────────
-    const checkEmailAvailability = useCallback((email) => {
+    // ── On-blur email check (satu request saat user selesai mengetik) ─────
+    const checkEmailOnBlur = useCallback(async (email) => {
         const formatErr = validateEmailFormat(email);
-        if (formatErr) {
-            setEmailStatus("invalid");
-            return;
-        }
+        if (formatErr) return; // format salah sudah ditangani validate()
         setEmailStatus("checking");
-        clearTimeout(debounceTimer.current);
-        debounceTimer.current = setTimeout(async () => {
-            try {
-                const API = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
-                const res = await fetch(`${API}/public/check-email?email=${encodeURIComponent(email.trim())}`);
-                const data = await res.json();
-                setEmailStatus(data.available ? "available" : "taken");
-            } catch {
-                setEmailStatus("idle"); // network error — silent, validate on submit
-            }
-        }, 600);
+        try {
+            const API = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
+            const res = await fetch(`${API}/auth/check-email?email=${encodeURIComponent(email.trim().toLowerCase())}`);
+            const data = await res.json();
+            setEmailStatus(data.available ? "available" : "taken");
+        } catch {
+            setEmailStatus("idle"); // network error — silent, 409 on submit jadi fallback
+        }
     }, []);
 
     // ── Kios fetch ──────────────────────────────────────────────────────────
@@ -216,16 +207,8 @@ export default function Register() {
         setFormData(prev => ({ ...prev, [name]: newValue }));
         if (errors[name]) setErrors(prev => ({ ...prev, [name]: "" }));
         if (apiError) setApiError("");
-
-        // Email-specific handling
-        if (name === "email") {
-            if (!value.trim()) {
-                setEmailStatus("idle");
-                clearTimeout(debounceTimer.current);
-            } else {
-                checkEmailAvailability(value);
-            }
-        }
+        // Reset email check saat user mengedit ulang
+        if (name === "email") setEmailStatus("idle");
     };
 
     const pwStrength = getPasswordStrength(formData.password);
@@ -242,13 +225,13 @@ export default function Register() {
             if (emailErr) {
                 e.email = emailErr;
             } else if (emailStatus === "taken") {
-                e.email = "Email sudah terdaftar. Gunakan email lain atau login.";
+                e.email = "Email sudah terdaftar. Silakan login atau gunakan email lain.";
             } else if (emailStatus === "checking") {
                 e.email = "Sedang memeriksa email, tunggu sebentar...";
             }
 
             if (!formData.password)                          e.password = "Password wajib diisi";
-            else if (formData.password.length < 6)           e.password = "Password minimal 6 karakter";
+            else if (formData.password.length < 8)           e.password = "Password minimal 8 karakter";
             if (formData.password !== formData.konfirmasiPassword)
                 e.konfirmasiPassword = "Konfirmasi password tidak cocok";
         }
@@ -277,7 +260,7 @@ export default function Register() {
             fd.append("deskripsi",     formData.deskripsi || "");
             fd.append("email",         formData.email.trim().toLowerCase());
             fd.append("password",      formData.password);
-            fd.append("kios_id",       formData.kios.id);
+            fd.append("nomor_stand",   formData.kios.id);
             fd.append("file_ktp",      formData.ktp);
             fd.append("file_nib",      formData.nib);
             fd.append("setuju",        String(formData.setuju));
@@ -286,22 +269,24 @@ export default function Register() {
             localStorage.setItem("reg_email", formData.email.trim().toLowerCase());
             navigate("/status");
         } catch (err) {
-            setApiError(err.message || "Pendaftaran gagal. Silakan coba lagi.");
+            // 409 = duplikat email atau kios — err.httpStatus diset oleh api.js
+            if (err?.httpStatus === 409) {
+                const msg = err?.message || "";
+                if (msg.toLowerCase().includes("email")) {
+                    setErrors(prev => ({ ...prev, email: "Email sudah terdaftar. Silakan login atau gunakan email lain." }));
+                    setStep(1);
+                } else {
+                    setApiError(msg || "Data sudah digunakan, periksa kembali.");
+                }
+            } else {
+                setApiError(err.message || "Pendaftaran gagal. Silakan coba lagi.");
+            }
         } finally {
             setSubmitting(false);
         }
     };
 
     const zonas = [...new Set(KIOS_DATA.map(k => k.zona))];
-
-    // Helper: email field status indicator
-    const emailInputClass = () => {
-        if (errors.email) return "reg-input err";
-        if (emailStatus === "available") return "reg-input ok";
-        if (emailStatus === "checking")  return "reg-input checking";
-        if (emailStatus === "taken")     return "reg-input err";
-        return "reg-input";
-    };
 
     return (
         <>
@@ -388,12 +373,20 @@ export default function Register() {
                                     <p style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 16 }}>🔑 Data Akun (untuk login)</p>
                                 </div>
 
-                                {/* Email dengan real-time validation */}
+                                {/* Email */}
                                 <div className="field">
                                     <label className="field-label">Email <span>*</span></label>
                                     <div className="input-wrap">
-                                        <input type="email" name="email" value={formData.email} onChange={handleChange}
-                                               placeholder="email@contoh.com" className={emailInputClass()} />
+                                        <input
+                                            type="email" name="email" value={formData.email}
+                                            onChange={handleChange}
+                                            onBlur={(e) => {
+                                                const v = e.target.value.trim();
+                                                if (v && !validateEmailFormat(v)) checkEmailOnBlur(v);
+                                            }}
+                                            placeholder="email@contoh.com"
+                                            className={`reg-input${errors.email ? " err" : emailStatus === "available" ? " ok" : emailStatus === "taken" ? " err" : ""}`}
+                                        />
                                     </div>
                                     {errors.email && <div className="err-msg">⚠ {errors.email}</div>}
                                     {!errors.email && emailStatus === "checking" && (
@@ -417,7 +410,7 @@ export default function Register() {
                                 <div className="field">
                                     <label className="field-label">Password <span>*</span></label>
                                     <input type="password" name="password" value={formData.password} onChange={handleChange}
-                                           placeholder="Minimal 6 karakter" className={`reg-input${errors.password ? " err" : ""}`} />
+                                           placeholder="Minimal 8 karakter" className={`reg-input${errors.password ? " err" : ""}`} />
                                     {formData.password && (
                                         <div className="pw-strength">
                                             <div className="pw-strength-bars">
