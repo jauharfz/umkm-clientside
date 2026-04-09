@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
-import { Home, Box, Book, Tag, FileText, Settings, User, Store, ShieldCheck } from "lucide-react";
+import { Home, Box, Book, Tag, FileText, Settings, User, Store, ShoppingCart } from "lucide-react";
 import "../assets/styles/sidebar.css";
 import logo from "../assets/images/logo.jpeg";
 import ConfirmLogoutModal from "./modals/ConfirmLogoutModal";
@@ -11,7 +11,6 @@ export default function Sidebar({ open, setOpen, stokKritis = 0 }) {
     const location = useLocation();
     const [showLogout, setShowLogout] = useState(false);
 
-    // Ambil data user dari localStorage (di-set saat login & update profil)
     const user        = getUser();
     const namaUsaha   = user?.nama_usaha  || "Kios Saya";
     const stand       = user?.nomor_stand || "—";
@@ -19,7 +18,6 @@ export default function Sidebar({ open, setOpen, stokKritis = 0 }) {
     const namaPemilik = user?.nama_pemilik || "Pengguna";
     const namaDepan   = namaPemilik.split(" ")[0];
 
-    // Inisial avatar dari nama pemilik (maks 2 huruf)
     const inisial = namaPemilik
         .split(" ")
         .map((w) => w[0])
@@ -27,26 +25,20 @@ export default function Sidebar({ open, setOpen, stokKritis = 0 }) {
         .slice(0, 2)
         .toUpperCase();
 
-    // ── PERBAIKAN UTAMA: semua path pakai /dashboard/... ─────────────────────
-    // Sebelumnya path seperti "/" dan "/stok" tidak cocok dengan
-    // nested routes di App.jsx (semua berada di bawah /dashboard/*),
-    // sehingga navigasi selalu jatuh ke catch-all dan redirect balik ke /dashboard.
     const menu = [
-        { path: "/dashboard",                  label: "Dashboard",         icon: <Home size={18} /> },
-        { path: "/dashboard/stok",             label: "Manajemen Stok",    icon: <Box size={18} />, badge: stokKritis || null },
-        { path: "/dashboard/kas",              label: "Buku Kas",          icon: <Book size={18} /> },
-        { path: "/dashboard/promo",            label: "Promo & Diskon",    icon: <Tag size={18} /> },
-        { path: "/dashboard/verifikasi-member",label: "Verifikasi Member", icon: <ShieldCheck size={18} /> },
-        { path: "/dashboard/riwayat",          label: "Riwayat",           icon: <FileText size={18} /> },
+        { path: "/dashboard",           label: "Dashboard",      icon: <Home size={18} /> },
+        { path: "/dashboard/stok",      label: "Manajemen Stok", icon: <Box size={18} />, badge: stokKritis || null },
+        { path: "/dashboard/kasir",     label: "Kasir / POS",    icon: <ShoppingCart size={18} /> },
+        { path: "/dashboard/kas",       label: "Buku Kas",       icon: <Book size={18} /> },
+        { path: "/dashboard/promo",     label: "Promo & Diskon", icon: <Tag size={18} /> },
+        { path: "/dashboard/riwayat",   label: "Riwayat",        icon: <FileText size={18} /> },
     ];
 
-    // Cek apakah route aktif — pakai startsWith agar nested path juga ter-highlight
     const isActive = (path) => {
-        if (path === "/dashboard") {
-            // Dashboard hanya aktif jika persis /dashboard, bukan /dashboard/stok dsb.
-            return location.pathname === "/dashboard";
-        }
-        return location.pathname.startsWith(path);
+        if (path === "/dashboard") return location.pathname === "/dashboard";
+        // Gunakan exact match ATAU prefix dengan "/", bukan plain startsWith
+        // — mencegah "/dashboard/kas" highlight saat di "/dashboard/kasir"
+        return location.pathname === path || location.pathname.startsWith(path + "/");
     };
 
     const handleNav = (path) => {
