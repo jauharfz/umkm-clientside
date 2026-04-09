@@ -504,14 +504,17 @@ export default function Register() {
                                     </ul>
                                 </div>
                                 <label
+                                    htmlFor="setuju-checkbox"
                                     className={`checkbox-row${formData.setuju ? " checked" : ""}${errors.setuju ? " err" : ""}`}
-                                    onClick={() => {
-                                        setFormData(prev => ({ ...prev, setuju: !prev.setuju }));
-                                        if (errors.setuju) setErrors(prev => ({ ...prev, setuju: "" }));
-                                    }}
                                 >
-                                    <input type="checkbox" checked={formData.setuju} onChange={() => {}}
-                                           style={{ width: 18, height: 18, accentColor: "#2f855a", flexShrink: 0, marginTop: 1, cursor: "pointer" }} />
+                                    <input
+                                        id="setuju-checkbox"
+                                        name="setuju"
+                                        type="checkbox"
+                                        checked={formData.setuju}
+                                        onChange={handleChange}
+                                        style={{ width: 18, height: 18, accentColor: "#2f855a", flexShrink: 0, marginTop: 1, cursor: "pointer" }}
+                                    />
                                     <span style={{ fontSize: 13.5, color: "#374151", fontWeight: 500, lineHeight: 1.5, cursor: "pointer" }}>
                                         Saya telah membaca dan <strong>menyetujui seluruh syarat & ketentuan</strong> yang berlaku
                                     </span>
