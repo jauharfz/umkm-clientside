@@ -1,44 +1,31 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import "../../assets/styles/promo.css";
 import { getUser } from "../../services/api";
 
 export default function EditPromoModal({ show, item, onClose, onSave, onToast }) {
     const user  = getUser();
     const stand = user?.nomor_stand || "—";
+
     const [form, setForm] = useState({
-        nama: "", tipe: "Persentase", nilai: "", mulai: "", akhir: "", status: "aktif", file_poster: null,
+        nama: "", tipe: "Persentase", nilai: "", mulai: "", akhir: "", status: "aktif",
     });
-    const [posterPreview, setPosterPreview] = useState(null);
-    const fileRef = useRef();
 
     useEffect(() => {
         if (item) {
             setForm({
-                nama: item.nama || "",
-                tipe: item.tipe || "Persentase",
-                nilai: item.nilai || "",
-                mulai: item.mulai || "",
-                akhir: item.akhir || "",
+                nama:   item.nama   || "",
+                tipe:   item.tipe   || "Persentase",
+                nilai:  item.nilai  || "",
+                mulai:  item.mulai  || "",
+                akhir:  item.akhir  || "",
                 status: item.status || "aktif",
-                poster: item.poster || null,
             });
-            setPosterPreview(item.poster || null);
         }
     }, [item]);
 
     if (!show) return null;
 
     const set = (key, val) => setForm((prev) => ({ ...prev, [key]: val }));
-
-    const handleFile = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        // FIX: simpan File object untuk dikirim via FormData
-        set("file_poster", file);
-        const reader = new FileReader();
-        reader.onload = (ev) => setPosterPreview(ev.target.result);
-        reader.readAsDataURL(file);
-    };
 
     const handleSubmit = () => {
         if (!form.nama || !form.nilai || !form.mulai || !form.akhir) {
@@ -98,26 +85,6 @@ export default function EditPromoModal({ show, item, onClose, onSave, onToast })
                             <option value="aktif">Aktif</option>
                             <option value="nonaktif">Nonaktif</option>
                         </select>
-                    </div>
-
-                    {/* Upload Poster */}
-                    <div className="pd-fg pd-full">
-                        <label>Poster Promo <span className="pd-label-opt">(opsional)</span></label>
-                        {posterPreview ? (
-                            <div className="pd-poster-preview">
-                                <img src={posterPreview} alt="preview" />
-                                <button className="pd-poster-remove" onClick={() => { setPosterPreview(null); set("file_poster", null); }}>
-                                    ✕ Hapus Gambar
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="pd-upload-zone" onClick={() => fileRef.current.click()}>
-                                <span className="pd-upload-icon">🖼️</span>
-                                <span>Klik untuk upload poster promo</span>
-                                <span className="pd-upload-hint">JPG, PNG – maks 2MB</span>
-                            </div>
-                        )}
-                        <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
                     </div>
                 </div>
 

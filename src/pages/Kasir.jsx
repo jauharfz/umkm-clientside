@@ -26,7 +26,7 @@ import {
     User, Tag, CheckCircle2, XCircle, Loader2,
     RotateCcw, AlertCircle, ShoppingBag, Zap
 } from "lucide-react";
-import api, { getUser } from "../services/api";
+import api, { getUser, setUser } from "../services/api";
 import "../assets/styles/kasir.css";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -67,8 +67,20 @@ export default function Kasir() {
     const user      = getUser();
     const namaUsaha = user?.nama_usaha  || "Kios Saya";
     const stand     = user?.nomor_stand || "—";
-    // Foto QRIS statis dari profil UMKM (opsional — diisi di Pengaturan)
-    const qrisUrl   = user?.qris_url || null;
+
+    // Foto QRIS: load dari API agar selalu fresh (tidak hanya dari localStorage)
+    const [qrisUrl, setQrisUrl] = useState(user?.qris_url || null);
+    useEffect(() => {
+        api.get("/profil")
+            .then(res => {
+                const url = res?.data?.qris_url || null;
+                setQrisUrl(url);
+                // Sinkronisasi ke localStorage agar sesi berikutnya langsung tersedia
+                const cur = getUser();
+                if (cur) setUser({ ...cur, qris_url: url });
+            })
+            .catch(() => {});
+    }, []);
 
     // ── Daftar produk ──────────────────────────────────────────────────────
     const [products, setProducts] = useState([]);
@@ -344,6 +356,13 @@ export default function Kasir() {
                                         onClick={() => addToCart(p)}
                                         title={habis ? "Stok habis" : `Tambah ${p.nama} ke keranjang`}
                                     >
+                                        {/* Foto produk */}
+                                        <div className="ks-product-thumb">
+                                            {p.foto_url
+                                                ? <img src={p.foto_url} alt={p.nama} className="ks-product-thumb-img" />
+                                                : <span className="ks-product-thumb-icon">📦</span>
+                                            }
+                                        </div>
                                         <div className="ks-product-cat">{p.kategori || "Lainnya"}</div>
                                         <div className="ks-product-nama">{p.nama}</div>
                                         <div className="ks-product-harga">{fmtRp(p.harga)}</div>
@@ -595,21 +614,7 @@ export default function Kasir() {
                             </div>
                         )}
 
-                        {payMethod === "qris" && cart.length > 0 && (
-                            <div className="ks-qris-box">
-                                {qrisUrl ? (
-                                    <>
-                                        <img src={qrisUrl} alt="QRIS" className="ks-qris-img" />
-                                        <div className="ks-qris-label">Tunjukkan ke pembeli · konfirmasi manual setelah bayar</div>
-                                    </>
-                                ) : (
-                                    <div className="ks-qris-empty">
-                                        📷 Belum ada foto QRIS.<br />
-                                        <span>Upload di menu <strong>Pengaturan</strong> → Foto QRIS.</span>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+
 
                         <button
                             className="ks-btn-bayar"
@@ -672,6 +677,25 @@ export default function Kasir() {
                                 <span>{payMethod === "tunai" ? `💵 Tunai${uangNum > 0 ? ` (Kembalian ${fmtRp(kembalian)})` : ""}` : "📱 QRIS"}</span>
                             </div>
                         </div>
+
+                        {/* ── QRIS: tampil di modal agar bisa ditunjukkan ke pembeli ── */}
+                        {payMethod === "qris" && (
+                            <div className="ks-modal-qris">
+                                {qrisUrl ? (
+                                    <>
+                                        <div className="ks-modal-qris-label">📱 Tunjukkan QR ini ke pembeli untuk dibayar</div>
+                                        <div className="ks-modal-qris-total">{fmtRp(grandTotal)}</div>
+                                        <img src={qrisUrl} alt="QRIS" className="ks-modal-qris-img" />
+                                        <div className="ks-modal-qris-hint">Konfirmasi setelah pembeli selesai scan & bayar</div>
+                                    </>
+                                ) : (
+                                    <div className="ks-modal-qris-empty">
+                                        📷 Foto QRIS belum diupload.<br />
+                                        <span>Pergi ke <strong>Pengaturan → Foto QRIS</strong> untuk menguploadnya.</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <div className="ks-modal-actions">
                             <button className="ks-btn-cancel-modal" onClick={() => setShowConfirm(false)} disabled={submitting}>

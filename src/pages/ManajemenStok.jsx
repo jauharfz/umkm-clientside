@@ -9,45 +9,47 @@ import "../assets/styles/stok.css";
 import api, { getUser } from "../services/api";
 
 export default function ManajemenStok() {
-    const user = getUser();
+    const user      = getUser();
     const namaUsaha = user?.nama_usaha  || "Kios Saya";
     const stand     = user?.nomor_stand || "—";
 
-    const [items, setItems]     = useState([]);
+    const [items,   setItems]   = useState([]);
     const [loading, setLoading] = useState(true);
-    const [search, setSearch]   = useState("");
+    const [search,  setSearch]  = useState("");
 
     // ── FETCH ──
-    useEffect(() => {
-        fetchStok();
-    }, []);
+    useEffect(() => { fetchStok(); }, []);
 
     const fetchStok = async () => {
         setLoading(true);
         try {
             const res = await api.get("/stok");
             setItems(res.data || []);
-        } catch {
-            // Tetap tampilkan halaman meski gagal load
-        } finally {
-            setLoading(false);
-        }
+        } catch { /* tetap tampilkan halaman */ }
+        finally { setLoading(false); }
     };
 
-    const filteredItems = items.filter(
-        (item) =>
-            item.nama.toLowerCase().includes(search.toLowerCase()) ||
-            item.kategori?.toLowerCase().includes(search.toLowerCase())
+    const filtered = items.filter(i =>
+        i.nama.toLowerCase().includes(search.toLowerCase()) ||
+        i.kategori?.toLowerCase().includes(search.toLowerCase())
     );
 
     // ── TAMBAH ──
-    const [showModal, setShowModal] = useState(false);
+    const [showModal,    setShowModal]    = useState(false);
+    const [fotoFile,     setFotoFile]     = useState(null);
+    const [fotoPreview,  setFotoPreview]  = useState(null);
     const [form, setForm] = useState({
         nama: "", stok: "", harga: "", kategori: "Makanan", satuan: "", deskripsi: "",
     });
 
-    const handleChange = (e) =>
-        setForm({ ...form, [e.target.name]: e.target.value });
+    const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+    const handleFotoChange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setFotoFile(file);
+        setFotoPreview(URL.createObjectURL(file));
+    };
 
     const handleAdd = async () => {
         if (!form.nama || !form.stok || !form.harga) {
@@ -55,6 +57,7 @@ export default function ManajemenStok() {
             return;
         }
         try {
+            // 1. Simpan data barang
             const res = await api.post("/stok", {
                 nama:      form.nama,
                 stok:      Number(form.stok),
@@ -63,12 +66,34 @@ export default function ManajemenStok() {
                 satuan:    form.satuan,
                 deskripsi: form.deskripsi,
             });
-            setItems([...items, res.data]);
+
+            let newItem = res.data;
+
+            // 2. Upload foto jika ada
+            if (fotoFile instanceof File) {
+                try {
+                    const fd = new FormData();
+                    fd.append("file", fotoFile);
+                    const fotoRes = await api.postForm(`/stok/${newItem.id}/foto`, fd);
+                    newItem = { ...newItem, foto_url: fotoRes.foto_url };
+                } catch { /* foto gagal tidak batalkan barang */ }
+            }
+
+            setItems(prev => [newItem, ...prev]);
             setForm({ nama: "", stok: "", harga: "", kategori: "Makanan", satuan: "", deskripsi: "" });
+            setFotoFile(null);
+            setFotoPreview(null);
             setShowModal(false);
         } catch (err) {
             alert(err.message || "Gagal menambahkan barang");
         }
+    };
+
+    const handleCloseAdd = () => {
+        setShowModal(false);
+        setFotoFile(null);
+        setFotoPreview(null);
+        setForm({ nama: "", stok: "", harga: "", kategori: "Makanan", satuan: "", deskripsi: "" });
     };
 
     // ── EDIT ──
@@ -76,6 +101,7 @@ export default function ManajemenStok() {
 
     const handleUpdate = async (updatedItem) => {
         try {
+            // 1. Update data barang
             const res = await api.put(`/stok/${updatedItem.id}`, {
                 nama:      updatedItem.nama,
                 stok:      updatedItem.stok,
@@ -84,7 +110,26 @@ export default function ManajemenStok() {
                 satuan:    updatedItem.satuan,
                 deskripsi: updatedItem.deskripsi,
             });
-            setItems(items.map((item) => (item.id === updatedItem.id ? res.data : item)));
+
+            let updated = res.data;
+
+            // 2. Upload foto baru jika ada
+            if (updatedItem.fotoFile instanceof File) {
+                try {
+                    const fd = new FormData();
+                    fd.append("file", updatedItem.fotoFile);
+                    const fotoRes = await api.postForm(`/stok/${updatedItem.id}/foto`, fd);
+                    updated = { ...updated, foto_url: fotoRes.foto_url };
+                } catch { /* foto gagal tidak batalkan update */ }
+            } else if (updatedItem.fotoFile === "remove") {
+                // User hapus foto — set null di DB
+                try {
+                    await api.patch(`/stok/${updatedItem.id}/foto-hapus`);
+                    updated = { ...updated, foto_url: null };
+                } catch { /* abaikan */ }
+            }
+
+            setItems(prev => prev.map(i => i.id === updatedItem.id ? updated : i));
             setEditItem(null);
         } catch (err) {
             alert(err.message || "Gagal mengupdate barang");
@@ -97,30 +142,24 @@ export default function ManajemenStok() {
     const handleConfirmDelete = async () => {
         try {
             await api.delete(`/stok/${deleteItem.id}`);
-            setItems(items.filter((item) => item.id !== deleteItem.id));
+            setItems(prev => prev.filter(i => i.id !== deleteItem.id));
             setDeleteItem(null);
         } catch (err) {
             alert(err.message || "Gagal menghapus barang");
         }
     };
 
-    const kritisCount = items.filter((i) => i.stok <= 5).length;
+    const kritisCount = items.filter(i => i.stok <= 5).length;
 
     return (
         <div>
             {/* TOPBAR */}
             <div className="ms-topbar">
                 <div>
-                    <div className="pg-eye">
-                        <Box size={15} />KIOS SAYA</div>
-                    <div className="pg-title">
-                        Manajemen <em>Stok</em>
-                    </div>
-                    <div className="pg-sub">
-                        Produk yang dijual di Stand {stand} · {namaUsaha}
-                    </div>
+                    <div className="pg-eye"><Box size={15} />KIOS SAYA</div>
+                    <div className="pg-title">Manajemen <em>Stok</em></div>
+                    <div className="pg-sub">Produk yang dijual di Stand {stand} · {namaUsaha}</div>
                 </div>
-
                 <div className="ms-topbar-right">
                     <div className="ms-search">
                         <Search size={16} />
@@ -128,10 +167,9 @@ export default function ManajemenStok() {
                             type="text"
                             placeholder="Cari barang..."
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            onChange={e => setSearch(e.target.value)}
                         />
                     </div>
-
                     <button className="btn btn-primary" onClick={() => setShowModal(true)}>
                         <Plus size={16} /> Tambah Barang
                     </button>
@@ -151,9 +189,8 @@ export default function ManajemenStok() {
                     <span className="kios-badge-active">● Kios Aktif</span>
                     {kritisCount > 0 && (
                         <span className="kios-badge-warn">
-              <AlertTriangle size={14} />
-                            {kritisCount} stok kritis
-            </span>
+                            <AlertTriangle size={14} /> {kritisCount} stok kritis
+                        </span>
                     )}
                 </div>
             </div>
@@ -164,9 +201,9 @@ export default function ManajemenStok() {
                     <p style={{ padding: "32px", textAlign: "center", color: "#9ca3af" }}>Memuat data stok...</p>
                 ) : (
                     <StokTable
-                        items={filteredItems}
-                        onEdit={(item) => setEditItem(item)}
-                        onDelete={(item) => setDeleteItem(item)}
+                        items={filtered}
+                        onEdit={item => setEditItem(item)}
+                        onDelete={item => setDeleteItem(item)}
                     />
                 )}
             </div>
@@ -174,10 +211,12 @@ export default function ManajemenStok() {
             {/* MODALS */}
             <TambahBarangModal
                 show={showModal}
-                onClose={() => setShowModal(false)}
+                onClose={handleCloseAdd}
                 form={form}
                 handleChange={handleChange}
                 handleSubmit={handleAdd}
+                fotoPreview={fotoPreview}
+                onFotoChange={handleFotoChange}
             />
 
             <EditBarangModal
