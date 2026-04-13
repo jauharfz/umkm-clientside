@@ -1,10 +1,12 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
-import { Home, Box, Book, Tag, FileText, Settings, User, Store, ShoppingCart } from "lucide-react";
+import { Home, Box, Book, Tag, FileText, Settings, User, Store, ShoppingCart, Calendar, Globe } from "lucide-react";
 import "../assets/styles/sidebar.css";
 import logo from "../assets/images/logo.jpeg";
 import ConfirmLogoutModal from "./modals/ConfirmLogoutModal";
 import { getUser } from "../services/api";
+
+const PUBLIC_URL = import.meta.env.VITE_PUBLIC_URL || 'http://localhost:5174';
 
 export default function Sidebar({ open, setOpen, stokKritis = 0 }) {
     const navigate = useNavigate();
@@ -27,6 +29,7 @@ export default function Sidebar({ open, setOpen, stokKritis = 0 }) {
 
     const menu = [
         { path: "/dashboard",           label: "Dashboard",      icon: <Home size={18} /> },
+        { path: "/dashboard/event",     label: "Event",          icon: <Calendar size={18} /> },   // 🆕
         { path: "/dashboard/stok",      label: "Manajemen Stok", icon: <Box size={18} />, badge: stokKritis || null },
         { path: "/dashboard/kasir",     label: "Kasir / POS",    icon: <ShoppingCart size={18} /> },
         { path: "/dashboard/kas",       label: "Buku Kas",       icon: <Book size={18} /> },
@@ -36,8 +39,6 @@ export default function Sidebar({ open, setOpen, stokKritis = 0 }) {
 
     const isActive = (path) => {
         if (path === "/dashboard") return location.pathname === "/dashboard";
-        // Gunakan exact match ATAU prefix dengan "/", bukan plain startsWith
-        // — mencegah "/dashboard/kas" highlight saat di "/dashboard/kasir"
         return location.pathname === path || location.pathname.startsWith(path + "/");
     };
 
@@ -51,7 +52,6 @@ export default function Sidebar({ open, setOpen, stokKritis = 0 }) {
             {open && <div className="sb-backdrop" onClick={() => setOpen(false)} />}
 
             <aside className={`sb ${open ? "open" : ""}`}>
-
                 <div className="sb-top">
                     <div className="sb-event">
                         <img src={logo} alt="logo" />
@@ -89,17 +89,11 @@ export default function Sidebar({ open, setOpen, stokKritis = 0 }) {
 
                     <div className="sb-akun">
                         <p className="lbl">AKUN</p>
-                        <div
-                            className={`si ${isActive("/dashboard/pengaturan") ? "active" : ""}`}
-                            onClick={() => handleNav("/dashboard/pengaturan")}
-                        >
+                        <div className={`si ${isActive("/dashboard/pengaturan") ? "active" : ""}`} onClick={() => handleNav("/dashboard/pengaturan")}>
                             <span className="icon"><Settings size={18} /></span>
                             <span className="si-label">Pengaturan</span>
                         </div>
-                        <div
-                            className={`si ${isActive("/dashboard/profile") ? "active" : ""}`}
-                            onClick={() => handleNav("/dashboard/profile")}
-                        >
+                        <div className={`si ${isActive("/dashboard/profile") ? "active" : ""}`} onClick={() => handleNav("/dashboard/profile")}>
                             <span className="icon"><User size={18} /></span>
                             <span className="si-label">Profile</span>
                         </div>
@@ -107,6 +101,15 @@ export default function Sidebar({ open, setOpen, stokKritis = 0 }) {
                 </div>
 
                 <div className="sb-divider" />
+                <a
+                  href={PUBLIC_URL}
+                  className="si"
+                  style={{textDecoration:'none',display:'flex',alignItems:'center',gap:10,opacity:.7}}
+                  title="Beranda Publik"
+                >
+                  <span className="icon"><Globe size={18}/></span>
+                  <span className="si-label">Beranda Publik</span>
+                </a>
                 <div className="sb-profile" onClick={() => setShowLogout(true)}>
                     <div className="avatar">{inisial}</div>
                     <div className="sb-profile-info">

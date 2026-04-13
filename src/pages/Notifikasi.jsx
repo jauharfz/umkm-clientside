@@ -1,242 +1,153 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, CheckCheck, X, Package, ShoppingCart, AlertTriangle, Info, ChevronRight, Calendar, Clock, Tag } from "lucide-react";
+import { Bell, CheckCheck, X, Calendar, Info, CheckCircle, MapPin, Users, Trash2 } from "lucide-react";
 import "../assets/styles/notifikasi.css";
-import api from "../services/api";
+import { getNotifs, markRead, markAllRead } from "../lib/notifications";
 
-// ── TYPE CONFIG ─────────────────────────────────────────────
 const TYPE_META = {
-  stok:      { label: "Stok",       color: "#f97316", bg: "#fff7ed", icon: <Package size={16} /> },
-  transaksi: { label: "Transaksi",  color: "#2f6f4e", bg: "#eef5ef", icon: <ShoppingCart size={16} /> },
-  promo:     { label: "Promo",      color: "#7c3aed", bg: "#f5f3ff", icon: <Tag size={16} /> },
-  info:      { label: "Info",       color: "#0ea5e9", bg: "#f0f9ff", icon: <Info size={16} /> },
+  umkm_approved:       { color:"#2f6f4e", bg:"#f0fdf4", icon:"✅", label:"Akun" },
+  umkm_event_approved: { color:"#0284c7", bg:"#eff6ff", icon:"📅", label:"Event" },
+  umkm_event_assigned: { color:"#7c3aed", bg:"#f5f3ff", icon:"📍", label:"Event" },
+  stok:                { color:"#f97316", bg:"#fff7ed", icon:"📦", label:"Stok" },
+  transaksi:           { color:"#2f6f4e", bg:"#eef5ef", icon:"💳", label:"Transaksi" },
+  promo:               { color:"#7c3aed", bg:"#f5f3ff", icon:"🏷️", label:"Promo" },
+  info:                { color:"#0ea5e9", bg:"#f0f9ff", icon:"ℹ️",  label:"Info" },
 };
 
 const FILTERS = [
-  { key: "semua", label: "Semua" },
-  { key: "belum", label: "Belum Dibaca" },
-  { key: "sudah", label: "Sudah Dibaca" },
+  { key:"semua", label:"Semua" },
+  { key:"belum", label:"Belum Dibaca" },
+  { key:"sudah", label:"Sudah Dibaca" },
 ];
 
-function NotifAvatar({ type }) {
-  const meta = TYPE_META[type] || TYPE_META.info;
-  return (
-    <div className="notif-avatar" style={{ background: meta.bg, color: meta.color }}>
-      {type === "stok"      && <AlertTriangle size={20} />}
-      {type === "transaksi" && <ShoppingCart size={20} />}
-      {type === "promo"     && <Tag size={20} />}
-      {type === "info"      && <Info size={20} />}
-      {!TYPE_META[type]     && <Info size={20} />}
-    </div>
-  );
-}
+const fmtTime = (iso) => {
+  if (!iso) return "";
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff/60000), h = Math.floor(m/60), d = Math.floor(h/24);
+  if (d > 0) return `${d} hari lalu`;
+  if (h > 0) return `${h} jam lalu`;
+  if (m > 0) return `${m} menit lalu`;
+  return "Baru saja";
+};
 
-function DetailModal({ notif, onClose }) {
-  if (!notif) return null;
-  const meta = TYPE_META[notif.type] || TYPE_META.info;
-  const rows = notif.detail ? Object.entries(notif.detail) : [];
-
-  return (
-    <div className="notif-overlay" onClick={onClose}>
-      <div className="notif-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="nm-header">
-          <div className="nm-title-row">
-            <NotifAvatar type={notif.type} />
-            <h3 className="nm-title">{notif.title}</h3>
-          </div>
-          <button className="nm-close" onClick={onClose}><X size={18} /></button>
-        </div>
-
-        <div className="nm-time-box">
-          <div className="nm-time-left">
-            <p className="nm-time-label">Waktu Notifikasi</p>
-            <p className="nm-time-val">
-              <Calendar size={14} style={{ marginRight: 6, verticalAlign: "middle" }} />
-              {notif.time || notif.created_at}
-            </p>
-          </div>
-          <span className="nm-type-badge" style={{ background: meta.bg, color: meta.color }}>
-            {meta.label}
-          </span>
-        </div>
-
-        {rows.length > 0 && (
-          <div className="nm-detail-box">
-            <p className="nm-detail-title">
-              <Info size={14} style={{ marginRight: 6 }} />
-              Detail Informasi
-            </p>
-            {rows.map(([k, v]) => (
-              <div className="nm-row" key={k}>
-                <span className="nm-key">{k.charAt(0).toUpperCase() + k.slice(1)}</span>
-                <span className="nm-val">{v}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {!rows.length && notif.desc && (
-          <div className="nm-detail-box">
-            <p style={{ fontSize: 14, color: "#4b5563", lineHeight: 1.7 }}>{notif.desc}</p>
-          </div>
-        )}
-
-        <div className="nm-footer">
-          <button className="nm-btn-tutup" onClick={onClose}>Tutup</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── MAIN PAGE ────────────────────────────────────────────────
 export default function Notifikasi() {
-  const navigate  = useNavigate();
-  const [filter, setFilter]   = useState("semua");
-  const [notifs, setNotifs]   = useState([]);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const [list, setList] = useState([]);
+  const [filter, setFilter] = useState("semua");
   const [selected, setSelected] = useState(null);
 
+  const refresh = () => {
+    const local = getNotifs('umkm');
+    // Seed dummy if empty on first visit
+    if (local.length === 0) {
+      setList([
+        { id:'nd1', type:'umkm_approved', icon:'✅', title:'Usaha Diverifikasi', message:'Selamat! Usaha kamu telah diverifikasi oleh admin. Dashboard sudah aktif.', read:true, created_at: new Date(Date.now()-86400000*2).toISOString() },
+        { id:'nd2', type:'umkm_event_approved', icon:'📅', title:'Permintaan Event Disetujui', message:'Kamu disetujui untuk "Festival Budaya Banyumasan 2025" di posisi Zona A - Stand 3.', read:false, created_at: new Date(Date.now()-3600000).toISOString() },
+      ]);
+    } else {
+      setList(local);
+    }
+  };
+
   useEffect(() => {
-    api.get("/notifikasi")
-      .then(res => setNotifs(res.data?.notifikasi || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    refresh();
+    window.addEventListener('pekan_notif_update', refresh);
+    return () => window.removeEventListener('pekan_notif_update', refresh);
   }, []);
 
-  const unreadCount = notifs.filter((n) => !n.read && !n.is_read).length;
+  const baca = (id) => { markRead('umkm', id); refresh(); };
+  const bacaSemua = () => { markAllRead('umkm'); refresh(); };
 
-  const filtered = notifs.filter((n) => {
-    const isRead = n.read || n.is_read;
-    if (filter === "belum") return !isRead;
-    if (filter === "sudah") return isRead;
+  const unread = list.filter(n => !n.read).length;
+  const filtered = list.filter(n => {
+    if (filter === 'belum') return !n.read;
+    if (filter === 'sudah') return n.read;
     return true;
   });
 
-  const markAllRead = async () => {
-    try {
-      await api.patch("/notifikasi/baca-semua", {});
-      setNotifs((prev) => prev.map((n) => ({ ...n, read: true, is_read: true })));
-    } catch {
-      // Silent fail — tetap tandai di state lokal
-      setNotifs((prev) => prev.map((n) => ({ ...n, read: true, is_read: true })));
-    }
-  };
-
-  const handleClick = async (notif) => {
-    const isRead = notif.read || notif.is_read;
-    if (!isRead) {
-      try {
-        await api.patch(`/notifikasi/${notif.id}/baca`, {});
-      } catch {}
-      setNotifs((prev) =>
-        prev.map((n) => (n.id === notif.id ? { ...n, read: true, is_read: true } : n))
-      );
-    }
-    setSelected(notif);
-  };
+  const detail = selected ? list.find(n => n.id === selected) : null;
 
   return (
     <div className="notif-page">
-      {/* TOP BAR */}
-      <div className="notif-topbar">
-        <div className="notif-topbar-left">
-          <h1 className="notif-page-title">Notifikasi</h1>
-        </div>
-        <div className="notif-topbar-right">
-          <span className="notif-date">
-            <Clock size={13} style={{ marginRight: 5 }} />
-            {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-          </span>
-          <div className="notif-bell-wrap">
-            <Bell size={18} />
-            {unreadCount > 0 && <span className="notif-bell-badge">{unreadCount}</span>}
+      {/* Header */}
+      <div className="notif-header">
+        <div>
+          <div className="notif-title-row">
+            <h1 className="notif-heading">Notifikasi</h1>
+            {unread > 0 && <span className="notif-badge">{unread}</span>}
           </div>
+          <p className="notif-sub">Pembaruan status usaha dan event kamu</p>
         </div>
+        {unread > 0 && (
+          <button className="notif-read-all" onClick={bacaSemua}>
+            <CheckCheck size={15}/> Tandai semua dibaca
+          </button>
+        )}
       </div>
 
-      {/* CONTENT */}
-      <div className="notif-content">
+      {/* Filter tabs */}
+      <div className="notif-filters">
+        {FILTERS.map(f => (
+          <button key={f.key} className={`nf-btn ${filter===f.key?'active':''}`} onClick={() => setFilter(f.key)}>
+            {f.label}
+          </button>
+        ))}
+      </div>
 
-        <div className="notif-section-header">
-          <div>
-            <h2 className="notif-section-title">
-              <Bell size={20} style={{ marginRight: 10, color: "#f97316" }} />
-              Notifikasi
-            </h2>
-            <p className="notif-section-sub">Semua pemberitahuan aktivitas akun & kios Anda</p>
-          </div>
-          {unreadCount > 0 && (
-            <button className="notif-btn-markall" onClick={markAllRead}>
-              <CheckCheck size={15} style={{ marginRight: 6 }} />
-              Tandai Semua Dibaca
-            </button>
-          )}
+      {/* List */}
+      {filtered.length === 0 ? (
+        <div className="notif-empty">
+          <Bell size={36}/>
+          <p>{filter==='belum'?'Semua notifikasi sudah dibaca':'Belum ada notifikasi'}</p>
         </div>
-
-        {/* FILTER PILLS */}
-        <div className="notif-filters">
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              className={`notif-pill ${filter === f.key ? "active" : ""}`}
-              onClick={() => setFilter(f.key)}
-            >
-              {f.label}
-              {f.key === "belum" && unreadCount > 0 && (
-                <span className="notif-pill-count">{unreadCount}</span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* LIST */}
+      ) : (
         <div className="notif-list">
-          {loading ? (
-            <p style={{ padding: "32px", textAlign: "center", color: "#9ca3af" }}>Memuat notifikasi...</p>
-          ) : filtered.length === 0 ? (
-            <div className="notif-empty">
-              <Bell size={36} style={{ color: "#d1d5db", marginBottom: 10 }} />
-              <p>Tidak ada notifikasi</p>
-            </div>
-          ) : (
-            filtered.map((n) => {
-              const isRead = n.read || n.is_read;
-              const meta   = TYPE_META[n.type] || TYPE_META.info;
-              return (
-                <div
-                  key={n.id}
-                  className={`notif-item ${!isRead ? "unread" : ""}`}
-                  onClick={() => handleClick(n)}
-                >
-                  <NotifAvatar type={n.type} />
-                  <div className="notif-item-body">
-                    <div className="notif-item-top">
-                      <span className="notif-item-title">{n.title}</span>
-                      <div className="notif-item-meta">
-                        {!isRead && <span className="notif-dot" />}
-                        <span className="notif-item-time">{n.time || n.created_at}</span>
-                      </div>
-                    </div>
-                    <p className="notif-item-desc">{n.desc || n.description}</p>
-                    <span
-                      className="notif-type-chip"
-                      style={{ background: meta.bg, color: meta.color }}
-                    >
-                      {meta.icon}
-                      {meta.label}
-                    </span>
-                  </div>
-                  <ChevronRight size={16} className="notif-chevron" />
+          {filtered.map(n => {
+            const meta = TYPE_META[n.type] || TYPE_META.info;
+            return (
+              <div key={n.id}
+                className={`notif-item ${!n.read ? 'unread' : ''}`}
+                onClick={() => { baca(n.id); setSelected(n.id); }}
+              >
+                <div className="notif-avatar" style={{background:meta.bg, color:meta.color}}>
+                  <span style={{fontSize:18}}>{n.icon || meta.icon}</span>
                 </div>
-              );
-            })
-          )}
+                <div className="notif-content">
+                  {n.title && <p className={`notif-item-title ${!n.read?'bold':''}`}>{n.title}</p>}
+                  <p className={`notif-item-msg ${!n.read?'bold':''}`}>{n.message}</p>
+                  <p className="notif-item-time">{fmtTime(n.created_at)}</p>
+                </div>
+                {!n.read && <div className="notif-dot"/>}
+              </div>
+            );
+          })}
         </div>
-      </div>
+      )}
 
-      {/* DETAIL MODAL */}
-      <DetailModal notif={selected} onClose={() => setSelected(null)} />
+      {/* Detail modal */}
+      {detail && (
+        <div className="notif-overlay" onClick={() => setSelected(null)}>
+          <div className="notif-modal" onClick={e => e.stopPropagation()}>
+            <div className="nm-header">
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <span style={{fontSize:24}}>{detail.icon || '🔔'}</span>
+                <h3 className="nm-title">{detail.title || 'Notifikasi'}</h3>
+              </div>
+              <button className="nm-close" onClick={() => setSelected(null)}><X size={18}/></button>
+            </div>
+            <div style={{padding:'16px 20px 20px'}}>
+              <p style={{fontSize:14,color:'#374151',lineHeight:1.7}}>{detail.message}</p>
+              <p style={{fontSize:12,color:'#9ca3af',marginTop:12}}>{fmtTime(detail.created_at)}</p>
+              {detail.link && (
+                <button onClick={() => { setSelected(null); navigate(detail.link); }}
+                  style={{marginTop:16,padding:'8px 18px',background:'#2f6f4e',color:'#fff',border:'none',borderRadius:10,fontSize:13,fontWeight:700,cursor:'pointer'}}>
+                  Lihat Detail →
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

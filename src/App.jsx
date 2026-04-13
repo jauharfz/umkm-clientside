@@ -1,10 +1,4 @@
-// src/App.jsx  — UMKM Frontend
-// CHANGELOG v2:
-//   1. Route /dashboard/verifikasi-member diganti /dashboard/kasir → Kasir.jsx
-//   2. VerifikasiMember.jsx masih ada di filesystem tapi tidak dipakai lagi
-//      (dapat dihapus manual jika diinginkan)
-//   3. Legacy redirect: /dashboard/verifikasi-member → /dashboard/kasir
-
+// src/App.jsx — UMKM Frontend (+ route /dashboard/event)
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
@@ -12,6 +6,7 @@ import CompanyProfile  from "./pages/CompanyProfile";
 import Login           from "./pages/auth/Login";
 import Register        from "./pages/auth/Register";
 import Status          from "./pages/auth/Status";
+import SelectRole      from "./pages/auth/SelectRole";
 
 import Layout          from "./components/Layout";
 import Dashboard       from "./pages/Dashboard";
@@ -23,13 +18,13 @@ import Pengaturan      from "./pages/Pengaturan";
 import Profile         from "./pages/Profile";
 import Notifikasi      from "./pages/Notifikasi";
 import Kasir           from "./pages/Kasir";
+import Event           from "./pages/Event";      // 🆕
 
 import { getToken } from "./services/api";
 
 function PublicOnlyRoute({ children }) {
     return getToken() ? <Navigate to="/dashboard" replace /> : children;
 }
-
 function PrivateRoute({ children }) {
     return getToken() ? children : <Navigate to="/login" replace />;
 }
@@ -39,15 +34,14 @@ function App() {
         <BrowserRouter>
             <Toaster position="top-right" />
             <Routes>
-                {/* Landing */}
+                {/* Landing / publik */}
                 <Route path="/" element={<CompanyProfile />} />
 
                 {/* Auth */}
                 <Route path="/login"       element={<PublicOnlyRoute><Login    /></PublicOnlyRoute>} />
+                <Route path="/daftar"      element={<PublicOnlyRoute><SelectRole /></PublicOnlyRoute>} />
                 <Route path="/daftar-umkm" element={<PublicOnlyRoute><Register /></PublicOnlyRoute>} />
-
-                {/* Status — accessible without login (pending users have no token) */}
-                <Route path="/status" element={<Status />} />
+                <Route path="/status"      element={<Status />} />
 
                 {/* Legacy redirects */}
                 <Route path="/register"      element={<Navigate to="/daftar-umkm" replace />} />
@@ -57,6 +51,7 @@ function App() {
                 {/* Protected */}
                 <Route path="/dashboard" element={<PrivateRoute><Layout /></PrivateRoute>}>
                     <Route index                    element={<Dashboard />} />
+                    <Route path="event"             element={<Event />} />           {/* 🆕 */}
                     <Route path="notifikasi"        element={<Notifikasi />} />
                     <Route path="stok"              element={<ManajemenStok />} />
                     <Route path="kas"               element={<BukuKas />} />
@@ -65,11 +60,10 @@ function App() {
                     <Route path="riwayat"           element={<Riwayat />} />
                     <Route path="pengaturan"        element={<Pengaturan />} />
                     <Route path="profile"           element={<Profile />} />
-                    {/* Legacy: redirect lama ke kasir */}
                     <Route path="verifikasi-member" element={<Navigate to="/dashboard/kasir" replace />} />
+                    <Route path="company-profile"   element={<CompanyProfile />} />
                 </Route>
 
-                {/* Catch-all */}
                 <Route path="*" element={getToken() ? <Navigate to="/dashboard" replace /> : <Navigate to="/" replace />} />
             </Routes>
         </BrowserRouter>

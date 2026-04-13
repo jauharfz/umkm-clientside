@@ -48,14 +48,21 @@ export default function Login() {
     return (
         <>
             <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap');
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .login-root {
+
+        .back-btn{position:fixed;top:16px;left:16px;z-index:200;display:flex;align-items:center;
+          gap:6px;padding:7px 14px;background:rgba(255,255,255,.9);backdrop-filter:blur(8px);
+          border:1px solid rgba(0,0,0,.08);border-radius:20px;font-size:12px;font-weight:600;
+          color:#5a4a30;text-decoration:none;transition:all .15s;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+        .back-btn:hover{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+
+                .login-root {
           min-height: 100vh;
           display: flex;
-          font-family: 'DM Sans', sans-serif;
+          font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
           background: #f0ede6;
         }
 
@@ -109,7 +116,7 @@ export default function Login() {
         .left-badge span { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; display: block; }
 
         .left-heading {
-          font-family: 'Plus Jakarta Sans', sans-serif;
+          font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
           font-size: clamp(32px, 4vw, 46px);
           font-weight: 700;
           color: #ffffff;
@@ -126,23 +133,33 @@ export default function Login() {
           margin-bottom: 48px;
         }
 
-        .stat-row { display: flex; gap: 16px; }
+        .stat-row { display: flex; gap: 10px; }
         .stat-card {
           background: rgba(255,255,255,0.08);
           border: 1px solid rgba(255,255,255,0.14);
           backdrop-filter: blur(12px);
-          border-radius: 16px;
-          padding: 18px 22px;
+          border-radius: 12px;
+          padding: 16px 10px;
           flex: 1;
+          min-width: 0;
+          text-align: center;
         }
         .stat-num {
-          font-family: 'Lora', serif;
-          font-size: 26px;
-          font-weight: 700;
+          font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+          font-size: clamp(16px, 2.5vw, 22px);
+          font-weight: 800;
           color: #fff;
-          margin-bottom: 4px;
+          line-height: 1.1;
+          margin-bottom: 5px;
+          word-break: break-word;
         }
-        .stat-label { font-size: 12px; color: rgba(255,255,255,0.5); font-weight: 500; }
+        .stat-label {
+          font-size: 10px;
+          color: rgba(255,255,255,0.5);
+          font-weight: 500;
+          line-height: 1.4;
+          white-space: nowrap;
+        }
 
         /* ── RIGHT PANEL ── */
         .login-right {
@@ -194,7 +211,7 @@ export default function Login() {
         .logo-mark svg { width: 26px; height: 26px; fill: none; stroke: white; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 
         .card-title {
-          font-family: 'Lora', serif;
+          font-family: 'Playfair Display', Georgia, serif;
           font-size: 26px;
           font-weight: 700;
           color: #1a2e1f;
@@ -240,10 +257,11 @@ export default function Login() {
           padding: 13px 14px 13px 44px;
           border: 1.5px solid #e5e7eb;
           border-radius: 12px;
-          font-size: 14.5px;
-          font-family: 'DM Sans', sans-serif;
+          font-size: 14px;
+          font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
           background: #fafafa;
           color: #1a2e1f;
+          line-height: 1.5;
           transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
           outline: none;
           -webkit-appearance: none;
@@ -285,7 +303,7 @@ export default function Login() {
           border-radius: 14px;
           font-size: 15px;
           font-weight: 600;
-          font-family: 'DM Sans', sans-serif;
+          font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
           cursor: pointer;
           transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
           box-shadow: 0 6px 20px rgba(47,133,90,0.38);
@@ -349,6 +367,9 @@ export default function Login() {
 
             <div className="login-root">
 
+                {/* Back to home */}
+                <a href="/" className="back-btn">← Beranda</a>
+
                 {/* ── LEFT ── */}
                 <div className="login-left">
                     <div className="blob blob-1" />
@@ -377,8 +398,8 @@ export default function Login() {
                                 <div className="stat-label">UMKM Terdaftar</div>
                             </div>
                             <div className="stat-card">
-                                <div className="stat-num">3 Hari</div>
-                                <div className="stat-label">22–24 Maret 2026</div>
+                                <div className="stat-num">3</div>
+                                <div className="stat-label">Hari Event<br/>22–24 Mar 2026</div>
                             </div>
                             <div className="stat-card">
                                 <div className="stat-num">100%</div>
@@ -480,6 +501,14 @@ export default function Login() {
                             <span className="register-link" onClick={() => navigate("/register")}>
                 Daftar sekarang
               </span>
+                        </p>
+
+                        <p style={{textAlign:'center',fontSize:12,color:'#6b7280',marginTop:8}}>
+                            Pekerja kreatif?{' '}
+                            <a href={import.meta.env.VITE_MEMBER_URL || 'http://localhost:5175/login'}
+                               style={{color:'#2f6f4e',fontWeight:600,textDecoration:'none'}}>
+                                Login sebagai Member →
+                            </a>
                         </p>
 
                         <div className="event-strip">
