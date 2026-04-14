@@ -7,7 +7,7 @@ const cards = [
   {
     role: 'pekerja-kreatif',
     icon: '🎨',
-    title: 'Pekerja Kreatif',
+    title: 'Kreator',
     desc: 'Seniman, pengrajin, musisi, fotografer, dan pegiat kebudayaan lainnya.',
     features: ['Profil & portofolio publik','Posting story & konten','Daftar & ikuti event','Masuk direktori pelaku kreatif'],
     // Goes to member app (different port/domain)
@@ -39,7 +39,7 @@ export default function SelectRole() {
           display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',
           fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:20,margin:'0 auto 16px'}}>P</div>
         <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:700,color:'#2a1a0e',margin:'0 0 8px'}}>
-          Daftar ke Pekan Banyumasan
+          Daftar ke Peken Banyumasan
         </h1>
         <p style={{color:'#9c7a5e',fontSize:14,margin:0}}>Pilih jenis akun yang sesuai</p>
       </div>

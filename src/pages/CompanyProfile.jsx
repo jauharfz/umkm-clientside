@@ -111,7 +111,7 @@ const TAG_COLOR = {
 function RoleModal({ mode, onClose }) {
   const isLogin = mode === 'login';
   const roles = [
-    { icon:'🎨', title:'Pekerja Kreatif', desc:'Seniman, pengrajin, musisi & pelaku budaya',
+    { icon:'🎨', title:'Kreator', desc:'Seniman, pengrajin, musisi & pelaku budaya',
       color:'#8a551c', bg:'#fdf8f2', border:'#e5d8c9',
       action:() => window.location.href = isLogin ? `${MEMBER_URL}/login` : `${MEMBER_URL}/daftar` },
     { icon:'🏪', title:'Pelaku Usaha / UMKM', desc:'Pengusaha kreatif & tenant event',
@@ -349,7 +349,7 @@ export default function CompanyProfile() {
             fontSize:16,boxShadow:'0 3px 10px rgba(47,111,78,.25)'}}>🌿</div>
           <span style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:17,fontWeight:700,
             color:'#1c2b1f',letterSpacing:'-.01em',whiteSpace:'nowrap'}}>
-            Pekan Banyumasan
+            Peken Banyumasan
           </span>
         </button>
 
@@ -410,7 +410,7 @@ export default function CompanyProfile() {
               fontSize:'clamp(34px,4.5vw,54px)',fontWeight:700,color:'#1c2b1f',
               marginBottom:18,lineHeight:1.1,letterSpacing:'-.03em'}}>
               Rumah Bagi<br/>
-              <em style={{color:'#2f6f4e',fontStyle:'italic'}}>Para Pekerja Kreatif</em><br/>
+              <em style={{color:'#2f6f4e',fontStyle:'italic'}}>Para Kreator</em><br/>
               <span style={{fontSize:'75%',color:'#6b5c40'}}>Banyumas Raya</span>
             </h1>
             <p style={{fontSize:16,color:'#6b5c40',marginBottom:28,lineHeight:1.7,maxWidth:420}}>
@@ -428,7 +428,7 @@ export default function CompanyProfile() {
             {/* Stats */}
             <div className="cp-stats-wrap" style={{display:'flex',marginTop:36,
               borderTop:'1px solid rgba(0,0,0,.08)',paddingTop:24,gap:0}}>
-              {[['127','Pekerja Kreatif'],['34','UMKM Aktif'],['12','Event'],['17','Subsektor']].map(([n,l],i,arr) => (
+              {[['127','Kreator'],['34','UMKM Aktif'],['12','Event'],['17','Subsektor']].map(([n,l],i,arr) => (
                 <div key={l} style={{paddingRight:20,
                   borderRight: i<arr.length-1 ? '1px solid rgba(0,0,0,.1)' : 'none',
                   marginRight:20, ...(i===arr.length-1?{paddingRight:0,marginRight:0}:{})}}>
@@ -456,7 +456,7 @@ export default function CompanyProfile() {
               textTransform:'uppercase',marginBottom:8}}>— Portofolio</p>
             <h2 style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:26,
               fontWeight:700,color:'#1c2b1f',letterSpacing:'-.02em'}}>
-              Karya Pekerja Kreatif
+              Karya Kreator
             </h2>
           </div>
           <button style={{fontSize:13,color:'#2f6f4e',fontWeight:600,background:'none',border:'none',
@@ -647,7 +647,7 @@ export default function CompanyProfile() {
           </h2>
           <p style={{fontSize:14,color:'rgba(255,255,255,.4)',marginBottom:28,
             lineHeight:1.7,maxWidth:480,margin:'0 auto 28px'}}>
-            Daftarkan diri sebagai Pekerja Kreatif atau UMKM dan jadilah bagian dari gerakan pelestarian budaya digital Banyumas.
+            Daftarkan diri sebagai Kreator atau UMKM dan jadilah bagian dari gerakan pelestarian budaya digital Banyumas.
           </p>
           <div style={{display:'flex',justifyContent:'center',gap:12,flexWrap:'wrap'}}>
             <Btn primary
@@ -668,12 +668,12 @@ export default function CompanyProfile() {
       <footer style={{borderTop:'1px solid rgba(0,0,0,.08)',padding:'28px clamp(16px,4vw,40px)',
         textAlign:'center'}}>
         <p style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:16,fontWeight:700,
-          color:'#4a3728',marginBottom:5}}>Pekan Banyumasan</p>
+          color:'#4a3728',marginBottom:5}}>Peken Banyumasan</p>
         <p style={{fontSize:12,color:'#9c7a5e',lineHeight:1.7}}>
           Platform Ekonomi Kreatif & Kebudayaan Banyumas Raya
         </p>
         <p style={{fontSize:12,color:'#c0b8ac',marginTop:12}}>
-          © 2025 Pekan Banyumasan ·{' '}
+          © 2025 Peken Banyumasan ·{' '}
           <button style={{color:'#2f6f4e',background:'none',border:'none',cursor:'pointer',
             fontSize:12,fontWeight:600,fontFamily:"'Plus Jakarta Sans',sans-serif"}}
             onClick={()=>setModal('login')}>Masuk</button>
