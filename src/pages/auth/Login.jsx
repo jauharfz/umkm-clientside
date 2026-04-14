@@ -505,7 +505,7 @@ export default function Login() {
 
                         <p style={{textAlign:'center',fontSize:12,color:'#6b7280',marginTop:8}}>
                             Pekerja kreatif?{' '}
-                            <a href={import.meta.env.VITE_MEMBER_URL || 'http://localhost:5175/login'}
+                            <a href={`${import.meta.env.VITE_MEMBER_URL || 'http://localhost:5175'}/login`}
                                style={{color:'#2f6f4e',fontWeight:600,textDecoration:'none'}}>
                                 Login sebagai Member →
                             </a>

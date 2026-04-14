@@ -17,26 +17,15 @@ const DUMMY_USAHA_EVENTS = [
 ];
 
 // Zone/Stand map — bisa di-fetch dari API saat backend siap
-const ZONES = [
-  { zona:'A', label:'Zona A – Kriya & Fashion', stands:[
-    {id:'A-1',occupied:false},{id:'A-2',occupied:true},{id:'A-3',occupied:true},
-    {id:'A-4',occupied:false},{id:'A-5',occupied:false},{id:'A-6',occupied:true},
-  ]},
-  { zona:'B', label:'Zona B – Kuliner', stands:[
-    {id:'B-1',occupied:false},{id:'B-2',occupied:false},{id:'B-3',occupied:true},
-    {id:'B-4',occupied:false},{id:'B-5',occupied:true},
-  ]},
-  { zona:'C', label:'Zona C – Seni & Pertunjukan', stands:[
-    {id:'C-1',occupied:false},{id:'C-2',occupied:false},{id:'C-3',occupied:false},{id:'C-4',occupied:true},
-  ]},
-];
+import { getEventZones } from '../lib/eventZones';
 
 const fmtTgl = d => d ? new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '';
 
-function ZoneSelector({ value, onChange }) {
+function ZoneSelector({ value, onChange, zones = [] }) {
+  if (!zones.length) return <p style={{color:'#9ca3af',fontSize:12,padding:'8px 0'}}>Belum ada zona dikonfigurasi admin.</p>;
   return (
     <div style={{display:'flex',flexDirection:'column',gap:12}}>
-      {ZONES.map(z => (
+      {zones.map(z => (
         <div key={z.zona}>
           <p style={{fontSize:11,fontWeight:700,color:'#6b7280',marginBottom:6,textTransform:'uppercase',letterSpacing:'.06em'}}>{z.label}</p>
           <div className="zone-grid">
@@ -58,6 +47,7 @@ function ZoneSelector({ value, onChange }) {
 }
 
 function DaftarModal({ event, onClose, onSubmit }) {
+  const eventZones = getEventZones(event?.id || '');
   const [slot, setSlot] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -84,7 +74,7 @@ function DaftarModal({ event, onClose, onSubmit }) {
           </div>
           <div>
             <p className="ev-modal-label">Pilih Stand yang Tersedia</p>
-            <ZoneSelector value={slot} onChange={setSlot}/>
+            <ZoneSelector value={slot} onChange={setSlot} zones={eventZones}/>
             {slot && <p style={{fontSize:12,color:'#2f6f4e',marginTop:8,fontWeight:600}}>✓ Dipilih: {slot}</p>}
           </div>
           <div className="ev-modal-note">
@@ -115,6 +105,7 @@ function useSimpleToast() {
 
 // ── ChangeStandModal ─────────────────────────────────────────────────────────
 function ChangeStandModal({ ev, onClose, onSubmit }) {
+  const eventZones = getEventZones(ev?.id || ev?.event_id || '');
   const [slot, setSlot] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -140,7 +131,7 @@ function ChangeStandModal({ ev, onClose, onSubmit }) {
           </div>
           <div>
             <p className="ev-modal-label">Pilih Stand Baru</p>
-            <ZoneSelector value={slot} onChange={setSlot}/>
+            <ZoneSelector value={slot} onChange={setSlot} zones={eventZones}/>
             {slot && <p style={{fontSize:12,color:'#2f6f4e',marginTop:8,fontWeight:600}}>✓ Dipilih: {slot}</p>}
           </div>
           <div className="ev-modal-note">
